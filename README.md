@@ -14,8 +14,9 @@ human watching charts at 3 a.m.
 | 🏛️ **DoraHacks build** | https://dorahacks.io/build/51122 |
 | 🎯 **Model accuracy** | **97.47%** on held-out series (shipped integer model; EXIT calls 100%) |
 | ⚡ **Firing loop** | **≈ 2 s** end-to-end (origin → reactive → callback), proven live on testnet |
-| 🧪 **Tests** | **42/42** Foundry tests pass, including exact-logit pins, a full-loop end-to-end suite and the real-asset vault suite |
+| 🧪 **Tests** | **53/53** Foundry tests pass, including exact-logit pins, a full-loop end-to-end suite, the real-asset vault suite and the Chainlink adapter suite |
 | 🏦 **Vault** | **Real ERC20 position** — `SentinelVaultV2` holds WETH on Base Sepolia and de-risks into MockUSDC through `SentinelSwap` (live proof below) |
+| 📡 **Price feed** | **Two live trios** — Demo A on `MockPriceOracle` (deterministic firing proof); Demo B on the real Chainlink ETH/USD feed via `ChainlinkPriceAdapter`, reactive subscribed to WETH (live proof below) |
 | 🧠 **Inference** | **100% on-chain** — an MLP forward pass in Solidity fixed point, inside the reactive contract |
 
 ## Why
@@ -96,6 +97,7 @@ accepts logs from the system contract (`onlySystem`).
 | Contract | Chain | Role |
 |----------|-------|------|
 | `src/MockPriceOracle.sol` | Base Sepolia | Mock origin feed; `setPrice` emits `PriceUpdated(token, price, timestamp)` |
+| `src/ChainlinkPriceAdapter.sol` | Base Sepolia | Poll-based Chainlink relay (phase 2B); reads the ETH/USD feed's `latestRoundData()` and re-emits the identical `PriceUpdated` event keyed by WETH — never subscribes to feed events |
 | `src/SentinelReactive.sol` | Lasna | `AbstractReactive`; subscribes in constructor, features + inference in `react()`, requests callbacks |
 | `src/SentinelVault.sol` | Base Sepolia | `AbstractCallback`; phase-1 mock position, `executeProtection` de-risks (TRIM halves, EXIT closes) |
 | `src/MockUSDC.sol` | Base Sepolia | Minimal ERC20 (phase 2); the vault's de-risk target asset |
@@ -187,8 +189,74 @@ subscription still watches the phase-1 stand-in token
 (`0x000000000000000000000000000000000000dEaD`), not WETH. The phase-2
 rehearsal drove decisions on that key and mirrored the identical % series
 onto the oracle's WETH price key — the key `SentinelSwap` prices from;
-both keys live in the same `MockPriceOracle`. A WETH-subscribed reactive
-ships with the Chainlink upgrade, which redeploys the reactive leg.
+both keys live in the same `MockPriceOracle`. That was specific to this
+trio: the Chainlink upgrade below redeploys the reactive leg subscribed
+to WETH on a real feed.
+
+### Phase 2B — Chainlink adapter (2026-11-15)
+
+Upgrade B: a second, self-consistent trio whose price origin is the
+**real Chainlink ETH/USD feed** on Base Sepolia (proxy
+`0x4aDC67696bA383F43DD60A9e78F2C97Fbbfc7cb1`). `ChainlinkPriceAdapter`
+polls the feed's `latestRoundData()` and re-emits the *identical*
+`PriceUpdated` event (same topic, token key = WETH
+`0x4200000000000000000000000000000000000006`, price normalised ×1e10 to
+18 decimals) — deliberately poll-based, never an event subscription to
+the feed. Its emission gates (deadband 10 bps, min-interval 60 s,
+heartbeat 300 s, max staleness 3,600 s) double as the lREACT fuel
+throttle. Reactive #2 subscribes with `oracle = adapter, token = WETH`,
+so **both Demo A caveats — mock origin and stand-in token — are resolved
+for this trio**. MockUSDC is reused; the Demo A trio is untouched. All
+four new contracts are **Sourcify-verified (exact match)**:
+
+| Contract | Chain | Address | Deploy tx |
+|----------|-------|---------|-----------|
+| `ChainlinkPriceAdapter` | Base Sepolia (84532) | `0xAb9c7a5178B444cd1C1fD705e5eBeCf4b9A1C25F` | `0xba16d14ade1d586fcbc3d309e898587cac2fcec188a53b4aace5ea3799d60a66` |
+| `SentinelSwap` (#2) | Base Sepolia (84532) | `0x6E270B88133155E4c21d71029EF3Fe47Ce9e813D` | `0x76eb9e283e5942dbf2bad37aba7073e25ff4e7690bc5b4a80d78b0be19e7a498` |
+| `SentinelReactive` (#2) | Lasna (5318007) | `0x92ea50b0De053BE2D7FA6F73853aC403364c9330` | `0xd1728c9618599bdefa0698d3cd1dd3a5174d0c3259bd6543242daab45842429d` |
+| `SentinelVaultV2` (#2) | Base Sepolia (84532) | `0x41e86278264C0C4FB83e5328329ff6F459Ba3dF4` | `0xdb2c6b1e77b9c2eba4ab5e149018ed0430ec08027b228bb2e1be467cafe5f5fe` |
+
+**First sync — a real price enters the model.** The adapter's first
+`sync()`
+(`0x5c82ed22b9d4f957f1bfd0246284451b7a0db29887fa005f37323bf73c5da80f`)
+emitted `PriceUpdated(WETH, 1835125712180000000000)` — the live
+Chainlink answer **$1,835.12571218** — and reactive #2 ingested it
+(`0xfc4e70a88736c6d4abb46910575f84cc62e928b32af38770c07c8e3bc6546026`,
+`PriceSeen`, `updates = 1`).
+
+**The live window (~90 min, 13:06–14:36 UTC)** — 44 `sync()` calls →
+24 emissions → 24 reactive transactions → **22 `Decision` events, all
+HOLD, 0 callbacks**, while real ETH/USD opened at $1,835.13, ranged
+$1,809.08–$1,835.95 and closed at $1,812.15 — a genuine **−1.4% slide**,
+not a flat line. The model's response was proportionate and visible in
+its scores: the TRIM logit climbed from ~1.25–1.57 in the calm first
+half to **2.289** at the $1,809.08 print, while HOLD stayed clearly
+ahead (**6.436**). Decision evidence (all HOLD): first
+`0xaee9b392ee899d16211bbfdf1e5cd08d1832919ab34449939c70278c5641f65d`
+($1,835.03; H 7.831 / T 1.399 / E −11.305) · most-stressed
+`0xd1b009add072e00304faa2091c72ac1d3a041317cf0d2acdf16f7ca8141216a3`
+($1,809.08; H 6.436 / T 2.289 / E −10.547) · last
+`0x42f7dd4451ffdcfc2be273fe7909efc0bae5fb0f77c2e623c1a0f03aafd7747d`
+($1,812.15).
+
+**Honest note:** no TRIM/EXIT fired in the window, and none was forced —
+there is no mechanism to push prices into this trio, and a −1.4% slide
+*should not* fire a stop-loss. Demo B proves real-data ingestion and
+live on-chain decisions on real prices; the firing proof remains
+Demo A (phases 1–2 above).
+
+End state verified on-chain: reactive #2 `updates = 24`,
+`lastAction = HOLD`, zero debt, **1.3623139 lREACT remaining** (spent
+0.6376861 over 24 reacts ≈ 0.02657/react; ≈ 51 more reacts); vault #2
+holds **0.0093 WETH**, armed and untouched (HOLDs cost no callbacks),
+0.005 ETH billing, `closed = false`; swap #2 reserve intact at 1,000
+MockUSDC. Funding note: one faucet round (0.02 ETH → +2.1 lREACT,
+`0xb5ee1b72ed6df7768cc1195833967a55117af0139d106c32110379a92b4b4b38`)
+and a 0.0095 ETH Sepolia → Base Sepolia bridge
+(`0x731ca5be13d8fbe9c0555c874edca9fe285899fd9a01682bccf71b648fec79f1`)
+— smaller than the runbook's nominal amounts because the faucet round
+and the bridge drew on the same 0.03 Sepolia ETH pool, so the position
+is 0.0093 WETH instead of 0.01. Full log in [DEVLOG.md](DEVLOG.md).
 
 ## Model & training
 
@@ -214,7 +282,7 @@ Requires [Foundry](https://getfoundry.sh) (solc 0.8.29). Dependencies
 
 ```bash
 forge build
-forge test        # 42 tests, 6 suites
+forge test        # 53 tests, 7 suites
 ```
 
 | Suite | Covers |
@@ -225,31 +293,50 @@ forge test        # 42 tests, 6 suites
 | `SentinelEndToEnd.t.sol` (3) | The full loop with a **real** oracle event: calm market → no callback; crash → TRIM then EXIT callbacks delivered network-style (proxy caller, injected sender) → position 1000 → 500 → 0 |
 | `SentinelSwap.t.sol` (7) | Fixed-price desk: swap math at the oracle price with decimals normalisation, reserve accounting, reserve-shortfall partial fill (never reverts), zero-price / zero-amount no-ops |
 | `SentinelVaultV2.t.sol` (11) | Real-balance position view; TRIM sells exactly half, EXIT empties and closes; both auth guards revert; re-arm after EXIT; end-to-end loop asserting actual ERC20 balances move |
+| `ChainlinkPriceAdapter.t.sol` (11) | Poll-based relay: first-sync emission + ×1e10 normalisation, event-shape equality with `MockPriceOracle`, deadband suppression, min-interval throttle, heartbeat re-emission, stale / incomplete / zero-round rejection, swap priced off the adapter |
 
 ## Limitations (honest list)
 
 - **Synthetic training data.** The model is trained and evaluated on
   generated price series (540 of them, six scenario families), not on real
   market history. The 97.47% figure measures agreement with the labelling
-  policy on unseen *synthetic* series — it is not a backtest.
+  policy on unseen *synthetic* series. A real-data replay now exists
+  ([BACKTEST.md](BACKTEST.md)): the frozen weights over real ETH hourly
+  history capped simulated max drawdown at 4.0–5.4% vs 36–57%
+  buy-and-hold, at a −6.8% / −12.4% lag in calm markets — but the model
+  was never *trained* on real data.
 - **The labelling policy is a rule ladder.** Labels come from a hand-written
   drawdown policy; the MLP learns a smooth, context-aware approximation of
-  it. Where learning beats the raw ladder (smoothing in choppy series) is
-  not yet quantified — no rule-baseline comparison has been published.
-- **Mock oracle for the demo.** The live proof uses `MockPriceOracle`
-  (anyone can call `setPrice`) so the crash could be driven on demand. No
-  real price feed (e.g. Chainlink) is wired into the loop yet. The deployed
-  reactive contract also still subscribes to the phase-1 stand-in token
-  (`0x000000000000000000000000000000000000dEaD`), not WETH — in the phase-2
-  rehearsal the identical % series was mirrored onto the oracle's WETH key
-  for swap pricing. The Chainlink adapter is the next step: it redeploys
-  the reactive leg subscribed to WETH on a real feed.
+  it. Where learning beats the raw ladder is quantified in
+  [BASELINE.md](BASELINE.md) (pooled policy accuracy MLP 97.40% vs rule
+  96.89%; whipsaw 98.4% vs 80.7%), alongside the model's measured losses
+  (slow-bleed under-protection; both deciders sell V-dip troughs).
+- **Mock oracle — Demo A trio only.** The firing proof (phases 1–2) uses
+  `MockPriceOracle` (anyone can call `setPrice`) so the crash could be
+  driven on demand, and that trio's reactive contract subscribes to the
+  phase-1 stand-in token (`0x000000000000000000000000000000000000dEaD`),
+  not WETH — in the phase-2 rehearsal the identical % series was mirrored
+  onto the oracle's WETH key for swap pricing. **Both caveats are
+  resolved in the Demo B trio** (phase 2B): `ChainlinkPriceAdapter`
+  relays the real Chainlink ETH/USD feed and reactive #2 subscribes to
+  WETH. What Demo B does not show is a *firing* on real data — its live
+  window was a −1.4% slide and the model correctly held throughout; a
+  real-market crash cannot be scheduled, so the firing proof remains
+  Demo A.
 - **Simulated market, real tokens.** Since phase 2 (2026-11-15) the live
   vault is `SentinelVaultV2`: it holds real WETH and TRIM/EXIT execute real
   transfers. But the counterparty is `SentinelSwap` — a fixed-price desk
-  seeded with a MockUSDC reserve and priced from the mock oracle — not a
-  live DEX market, and MockUSDC is a test token, not Circle's USDC. (The
+  seeded with a MockUSDC reserve and priced from the trio's price source
+  (mock oracle in Demo A, the Chainlink adapter in Demo B) — not a live
+  DEX market, and MockUSDC is a test token, not Circle's USDC. (The
   phase-1 `SentinelVault` remains deployed with its counter-only position.)
+- **9-price window boundary.** Drawdown is measured from the 9-price
+  window peak, so any decline slower than ≈ 2.6% per step can never reach
+  the 21% EXIT band — in slow grinds protection caps out at TRIM
+  (measured in [BASELINE.md](BASELINE.md) / [BACKTEST.md](BACKTEST.md):
+  EXIT fired only twice in 2,749 real hourly windows). Fixing it needs a
+  longer-horizon anchor (e.g. drawdown vs a slow EMA or the position-entry
+  price), not more training.
 - **Testnet only.** Everything runs on Base Sepolia + Lasna testnet with
   testnet funds; nothing here guards real money.
 - **Narrow by construction.** One token, one oracle (immutable), a 9-price
