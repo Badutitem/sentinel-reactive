@@ -256,3 +256,143 @@ for upgrade B work). All balances reconcile exactly (reserve 1000 − 14.1
    (diagnosed via unchanged nonce; nothing was sent, no funds spent) and
    was re-run correctly.
 4. **No top-up performed** — the lean plan fit the existing fuel (above).
+
+## Phase 2B — Chainlink adapter upgrade (2026-11-15)
+
+Upgrade B of the phase-2 design: a second, self-consistent trio whose
+price origin is the real Chainlink ETH/USD feed on Base Sepolia, relayed
+by `ChainlinkPriceAdapter`. Demo A (mock-origin trio) untouched. Testnet
+only (Base Sepolia 84532 + Lasna 5318007), executed per
+`phase2b-deploy-runbook.md`; every figure below was read back on-chain.
+Full run report:
+`~/workspace/goals/reactive-omni-buildathon-sentinel/hidden_files/phase2b-deploy-report.md`.
+Local gate before any transaction: `forge build` + `forge test` →
+**53/53 pass** (42 existing + 11 new adapter tests).
+
+**Funding.** Dev wallet `0x75c328F0354fFC73bee24F61F7166a33Bf90Bf94`
+preflight: Lasna 0.459128299998591283 lREACT · Sepolia
+0.029999048614758796 ETH · Base Sepolia 0.004967498075732014 ETH. (a)
+lREACT faucet round: `request(devWallet)` on the Sepolia faucet
+`0x9b9BB25f1A81078C544C829c5EB7822d747Cf434` with 0.02 ETH —
+`0xb5ee1b72ed6df7768cc1195833967a55117af0139d106c32110379a92b4b4b38`,
+credited exactly **+2.1 lREACT** on Lasna (Lasna balance after:
+2.559128299998591283). (b) Bridge: plain ETH transfer to the
+L1StandardBridge `0xfd0Bf71F60660E2f608ed56e1659C450eB113120` on Sepolia
+(the phase-1 route) — **0.0095 ETH**,
+`0x731ca5be13d8fbe9c0555c874edca9fe285899fd9a01682bccf71b648fec79f1`
+(gasUsed 634,136 — identical to phase 1's deposit); L2 credit landed
+~7 minutes later (Base Sepolia 0.004967 → 0.014467498075732014). No
+external funding was needed and none was requested. The old reactive's
+0.3371809 lREACT stays stranded, as documented (no owner-withdraw path).
+
+**Deployments (runbook order)** — all four **Sourcify-verified
+(exact match)**:
+
+| Contract | Address | Deploy tx | Sourcify |
+|----------|---------|-----------|----------|
+| `ChainlinkPriceAdapter` | `0xAb9c7a5178B444cd1C1fD705e5eBeCf4b9A1C25F` | `0xba16d14ade1d586fcbc3d309e898587cac2fcec188a53b4aace5ea3799d60a66` | job `4d79d881-c33d-457b-b699-a603303fc367` |
+| `SentinelSwap` (#2) | `0x6E270B88133155E4c21d71029EF3Fe47Ce9e813D` | `0x76eb9e283e5942dbf2bad37aba7073e25ff4e7690bc5b4a80d78b0be19e7a498` | exact_match (verified 2026-11-15T13:05:43Z) |
+| `SentinelReactive` (#2) | `0x92ea50b0De053BE2D7FA6F73853aC403364c9330` | `0xd1728c9618599bdefa0698d3cd1dd3a5174d0c3259bd6543242daab45842429d` | job `41e61aac-fafb-4845-9b97-3da2b819de8a` |
+| `SentinelVaultV2` (#2) | `0x41e86278264C0C4FB83e5328329ff6F459Ba3dF4` | `0xdb2c6b1e77b9c2eba4ab5e149018ed0430ec08027b228bb2e1be467cafe5f5fe` | exact_match (verified 2026-11-15T13:06:35Z) |
+
+Constructor args per runbook: adapter (feed
+`0x4aDC67696bA383F43DD60A9e78F2C97Fbbfc7cb1`, token WETH, deadband
+10 bps, minInterval 60, heartbeat 300, maxStaleness 3600); swap #2
+(WETH, reused MockUSDC `0x96E467Ff7958851d307D28118EBAAD333CAb85B2`,
+priceSource = adapter, vault = 0); reactive #2 (origin 84532, oracle =
+adapter, token WETH, dest 84532, cooldown 300, **2.0 lREACT attached at
+deploy**); vault #2 (proxy `0x476F44b11F5C942c58f4c8E3d0300E5710743585`,
+reactive #2, WETH, MockUSDC, swap #2). Post-deploy reads all passed
+before wiring (adapter `feed/token/priceScaleFactor` = proxy / WETH /
+1e10; reactive #2 `oracle()` = adapter, balance 2.0 lREACT, debt 0).
+
+**Wiring and arming:** `swap#2.setVault(vault#2)`
+`0x14c02c07f8fcad5898f0d6f3bc9e4fed6e5426b3dd83837ec6b9ba6c449c32ec` ·
+`reactive#2.setVault(vault#2)` (Lasna)
+`0x8c296dc8d29df0c512724e204c78197fdba0d312fdac888cad8f109bf17ac52f` ·
+seed desk `MockUSDC.mint(swap#2, 1000e18)`
+`0xccc24cac73d26d038cd2e2a5ed81df2c65e28ee2ece895a73a172e4c1f0df9e2` ·
+fund vault #2 with 0.005 ETH (callback billing)
+`0x3b3308c60b174269e6c1b310af6992a204b09a75e11845aa40dac659688fe453` ·
+wrap 0.0093 ETH → WETH
+`0xdb95f7c9583caff855cf649df1558fcbb4ec6466b700237cb68858908d1978e4` ·
+`WETH.approve(vault#2, max)`
+`0xe9ff6d93518e5ea97cbcf289f3c356a5ae2169ee934702b12fe7d18e4195bf91` ·
+`vault#2.deposit(0.0093 WETH)` — position armed
+`0xb8f8972a9547098819daac4b8b654f475bb7ed22ee3512dc50677fcf31d3f6b2`.
+Post-arm: `positionSize()` = 0.0093 WETH, `closed` false, proxy debt 0,
+swap #2 reserve 1,000 mUSDC (≈59× the position's ~$17 value).
+
+**First sync — real Chainlink price ingested.** Feed answer at sync
+time: **183512571218** ($1,835.12571218, 8 decimals), round 351 s old
+(fresh). Origin sync (Base Sepolia, block 59130727)
+`0x5c82ed22b9d4f957f1bfd0246284451b7a0db29887fa005f37323bf73c5da80f`
+emitted `PriceUpdated(WETH, 1835125712180000000000, 1794747486)` →
+reactive ingestion (Lasna, block 8410350)
+`0xfc4e70a88736c6d4abb46910575f84cc62e928b32af38770c07c8e3bc6546026`
+(`PriceSeen(price=1835125712180000000000, originTs=1794747486,
+updates=1)`). Adapter `lastPrice` read back as 1835125712180000000000.
+
+**Live window (13:06–14:36 UTC, ~90 min).** Driver
+`tools/drive_chainlink.sh` (poll feed every 15 s; `sync()` on round
+change or 150 s poke; the adapter's on-chain gates decide what emits);
+watcher `tools/watch_reactive.sh` tailing Lasna events. Totals: 44
+`sync()` calls → **24 `PriceUpdated` emissions** → **24 reactive
+transactions** (`updates` 0 → 24) → **22 `Decision` events, all HOLD,
+0 `CallbackRequested`, 0 callbacks** (the other 20 syncs were silent
+no-ops, correctly suppressed by the gates). Market (real Chainlink
+ETH/USD): opened $1,835.13, ranged $1,809.08–$1,835.95, closed
+$1,812.15 — a genuine −1.4% slide into the final third. TRIM logit
+climbed from ~1.25–1.57 (calm first half) to **2.289** at the $1,809.08
+print while HOLD stayed ahead (**6.436**); the 9-price window drawdown
+never approached the ~3% TRIM pattern. **No TRIM/EXIT fired, and none
+was forced** (no forcing mechanism exists). Decision evidence (all
+HOLD): first
+`0xaee9b392ee899d16211bbfdf1e5cd08d1832919ab34449939c70278c5641f65d`
+(block 8411019, $1,835.0274; H 7.831 / T 1.399 / E −11.305) ·
+most-stressed
+`0xd1b009add072e00304faa2091c72ac1d3a041317cf0d2acdf16f7ca8141216a3`
+(block 8415096, $1,809.0794; H 6.436 / T 2.289 / E −10.547) · last
+`0x42f7dd4451ffdcfc2be273fe7909efc0bae5fb0f77c2e623c1a0f03aafd7747d`
+(block 8415270, $1,812.1546). Full driver/watcher logs are archived
+beside the run report in the goal workspace.
+
+**Final on-chain state:** reactive #2 `updates` 24 / `lastAction` HOLD /
+debt 0 / **lREACT remaining 1.3623139** (spent 0.6376861 ≈ 0.02657/react;
+≈51 reacts of headroom) · vault #2 WETH **0.0093** / mUSDC 0 / ETH 0.005
+/ `closed` false / `protectionCount` 0 / proxy debt 0 · swap #2 WETH 0 /
+mUSDC reserve 1,000 (intact) · adapter `lastPrice` 1812154642420000000000
+($1,812.1546) · dev wallet after: Base Sepolia 0.000138874300687092 ETH ·
+Lasna 0.423364599997233646 lREACT · Sepolia 0.0001490024055249 ETH · WETH
+0. All balances reconcile (24 emissions = 24 updates; 22 Decisions =
+updates − 2 warm-up).
+
+**Deviations & notes:**
+
+1. **Bridge 0.0095 ETH instead of ~0.03–0.05; wrap/deposit 0.0093 WETH
+   instead of 0.02/0.01.** One funding pool: the dev wallet held exactly
+   0.03 Sepolia ETH, the faucet round consumed 0.02, so at most ~0.0099
+   could bridge. Gas on both chains is near-zero, so the shortfall landed
+   entirely on the two value transfers (bridge 0.0095; after the
+   runbook-exact 0.005 ETH vault billing, a 0.0093 WETH position — 7%
+   smaller, no spare WETH held back for a re-arm). All functional
+   parameters (faucet 0.02, billing 0.005, reserve 1,000 mUSDC, reactive
+   funding 2.0 lREACT ≥ 1.5) match the runbook.
+2. **Bridge mechanics:** the publicnode RPC's gas estimator reverts on
+   the bridge's receive path and its default fee suggestion exceeded the
+   wallet's upfront balance at a 700k gas limit; the deposit was sent
+   with explicit gas limit 700,000 and explicit EIP-1559 fees (max 0.6 /
+   priority 0.55 gwei). gasUsed 634,136 — identical to phase 1's deposit,
+   confirming the same route.
+3. **Driver/watcher restarts:** the first driver launch inherited a shell
+   without `~/.foundry/bin` on PATH (`cast` unresolved); both tools now
+   export the PATH themselves and were relaunched before any sync was
+   due — no emission missed (adapter `lastPrice` verified unchanged
+   across the restart). A runtime restart of the agent environment later
+   killed both background processes (~13:19Z, after emission #3 and the
+   first Decision were captured); relaunched 13:21Z for the remainder of
+   the window. The on-chain record is continuous; only the off-chain poke
+   cadence had a ~2-minute gap, which the heartbeat semantics absorb.
+4. Demo A trio, the old reactive (0.3371809 lREACT) and all phase-1/A
+   evidence are untouched; reactive #2 is an additional deployment, not
+   a replacement.
