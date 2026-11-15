@@ -600,5 +600,571 @@ def main():
     return 0
 
 
+
+# ===========================================================================
+# V2 — long-horizon anchor feature (offline candidate, added 2026-11-16).
+#
+# Everything below is ADDITIVE: no v1 function above is modified, and the
+# default entry point still reproduces v1 exactly. Run v2 with:
+#     python3 tools/train.py v2
+#
+# THE FLAW (BASELINE.md + BACKTEST.md): drawdown (feature 3) is measured
+# from the peak of the last 9 prices, so a decline slower than ~2.6%/step
+# never reaches the 21% EXIT band — EXIT windows were 0.0% in grind /
+# slow_grind / staircase for rule, model and teacher alike, and on real
+# hourly data EXIT fired 2x in 2,749 windows (never in Jun 2022 -52.7%
+# or Aug 2024 -35.8%).
+#
+# THE FIX: a 7th feature, anchorDrawdown, from a LEAKY PEAK state:
+#     anchorPeak <- max(p, anchorPeak * 999 // 1000)   (per price update)
+#     anchorDD   = (anchorPeak - p) * 1e6 // anchorPeak
+# The leak (0.1%/step, half-life ~693 steps) gives long-but-finite memory:
+# unlike a running peak it forgets, so a recovered market's anchorDD
+# decays back to ~0 and the state needs no knowledge of position arming.
+# All arithmetic is integer multiply/divide on non-negative values
+# (floor == Solidity uint division), so the mirror carries to Solidity
+# unchanged. Decay evidence (measured 2026-11-16, see ANCHOR.md): at
+# 998/1000 the Aug 2024 anchorDD peak is only 20.0% (EXIT margin thin);
+# at 999/1000 it is 24.7% while the worst benign real episode (Feb 2024
+# uptrend) peaks at 4.4% and synthetic chop p99 is 5.6% — 999/1000 keeps
+# >= 4x margin on the calm side and ~1.4x on the crash side of the band.
+#
+# TEACHER V2 (label_window_v2) = v1 ladder, unchanged, plus:
+#   anchorDD >= 18% AND window momentum < 0  -> EXIT  (slow-bleed rout;
+#       band sits >4x above every benign anchorDD observed — real chop
+#       max 3.5%, real uptrend max 4.4%, synthetic chop p99 5.6% — and
+#       below the anchorDD peaks of all three real crashes: Jun 2022
+#       37.9%, Aug 2024 24.7%, May 2021 44.7%. The momentum gate keeps a
+#       bounce inside a bleed from being labelled EXIT; the vshape
+#       recovery clause still takes precedence, as in v1.)
+#   anchorDD >= 10%                          -> TRIM  (sustained-bleed /
+#       post-fall overhang the 9-price window can no longer see; band is
+#       ~1.8x above synthetic chop p99 and never reached in either real
+#       calm episode, max 4.4%. Ungated, mirroring v1's window TRIM.)
+# Hidden layer: started at v1's 8 units; training evidence (underfit
+# at width 8 — see the HIDDEN_V2 note below) justified 12. The width is
+# a v2-only constant; v1's shapes are untouched.
+# ===========================================================================
+
+ANCHOR_DECAY_NUM = 999
+ANCHOR_DECAY_DEN = 1000
+ANCHOR_TRIM_DD = 100_000     # 0.10 in feature scale
+ANCHOR_EXIT_DD = 180_000     # 0.18 in feature scale
+# Hidden width: v2 trains at 12, not v1's 8. Evidence (2026-11-16 runs):
+# at width 8 the v2 float model underfits its own training set (95.7%
+# train accuracy after 4,000 epochs vs v1's ~97%+ on an easier task) —
+# the anchor bands plus the sawtooth veto compete with the old window
+# boundaries for the same 8 units (whipsaw_trim flapping stuck at
+# ~8% TRIM windows, crash fidelity ~90-93%). Width 12 restores the fit
+# without touching anything else. See ANCHOR.md for the run table.
+HIDDEN_V2 = 12
+SEED_V2 = 20261116
+WEIGHTS_V2_SOL = ROOT / "src" / "model" / "SentinelWeightsV2.sol"
+VECTORS_V2_JSON = ROOT / "tools" / "vectors_v2.json"
+
+
+def anchor_update(peak: int, price: int) -> int:
+    decayed = peak * ANCHOR_DECAY_NUM // ANCHOR_DECAY_DEN
+    return price if price > decayed else decayed
+
+
+def anchor_stream(prices):
+    """anchorPeak after each price in the list (state starts at prices[0])."""
+    peak = prices[0]
+    out = []
+    for p in prices:
+        peak = anchor_update(peak, p)
+        out.append(peak)
+    return out
+
+
+def features7_from_window(window, anchor_peak):
+    """The six v1 window features plus anchorDrawdown (feature index 6),
+    computed against the anchor state AFTER this window's newest price."""
+    f = features_from_window(window)
+    f.append((anchor_peak - window[-1]) * SCALE // anchor_peak)
+    return f
+
+
+def forward_int_v2(f, w1, b1, w2, b2):
+    """7 -> HIDDEN_V2 -> 3 integer forward pass; same semantics as
+    forward_int (width read from the bias vector)."""
+    H = len(b1)
+    hidden = []
+    for i in range(H):
+        acc = 0
+        for j in range(7):
+            acc += w1[i * 7 + j] * f[j]
+        acc = tdiv(acc, W_DENOM) + b1[i]
+        hidden.append(acc if acc > 0 else 0)
+    logits = []
+    best = 0
+    for k in range(3):
+        acc = 0
+        for i in range(H):
+            acc += w2[k * H + i] * hidden[i]
+        logits.append(tdiv(acc, W_DENOM) + b2[k])
+        if logits[k] > logits[best]:
+            best = k
+    return best, logits, hidden
+
+
+def forward_int_vec_v2(F, w1, b1, w2, b2):
+    H = len(b1)
+    W1 = np.asarray(w1, dtype=np.int64).reshape(H, 7)
+    W2 = np.asarray(w2, dtype=np.int64).reshape(3, H)
+    acc1 = F @ W1.T
+    acc1 = np.where(acc1 >= 0, acc1 // 1000, -((-acc1) // 1000)) + np.asarray(b1)
+    H = np.maximum(acc1, 0)
+    acc2 = H @ W2.T
+    acc2 = np.where(acc2 >= 0, acc2 // 1000, -((-acc2) // 1000)) + np.asarray(b2)
+    return np.argmax(acc2, axis=1), acc2, H
+
+
+def parse_weights_v2_sol(path):
+    text = path.read_text()
+    out = {}
+    for name in ("weights1", "biases1", "weights2", "biases2"):
+        m = re.search(name + r"\(\)[^=]*=\s*\[([^\]]*)\]", text, re.S)
+        vals = [int(x) for x in re.findall(r"int256\((-?\d+)\)", m.group(1))]
+        out[name] = vals
+    assert len(out["weights1"]) == 7 * len(out["biases1"])
+    assert len(out["weights2"]) == 3 * len(out["biases1"])
+    assert len(out["biases2"]) == 3
+    return out["weights1"], out["biases1"], out["weights2"], out["biases2"]
+
+
+# --- v2-only scenario generators (ported from BASELINE.md's appendix) -----
+
+def _gen_slow_grind(rng):
+    rets = list(rng.normal(rng.uniform(-0.011, -0.008), 0.003, 85))
+    return _walk(rng, rets), "ladder"
+
+
+def _gen_staircase(rng):
+    rets = list(rng.normal(0.0005, 0.003, 8))
+    for leg in range(3):
+        rets += list(rng.uniform(-0.032, -0.026, 3))
+        if leg < 2:
+            rets += list(rng.normal(0.0, 0.003, 8))
+    rets += list(rng.normal(-0.001, 0.003, 8))
+    return _walk(rng, rets), "ladder"
+
+
+def _gen_bleed_recovery(rng):
+    rets = list(rng.normal(0.0005, 0.003, 6))
+    for _ in range(5):
+        rets += list(rng.uniform(-0.014, -0.006, 10))
+        rets += list(rng.uniform(0.030, 0.050, 2))
+    rets += list(rng.normal(-0.002, 0.004, 6))
+    return _walk(rng, rets), "ladder"
+
+
+def _gen_sawtooth(rng):
+    """Oscillation around a level with no net trend (kind 'flat': the
+    teacher's intent is HOLD throughout). Added after v2's first training
+    run regressed on the baseline whipsaw families: the richer v2 mix
+    (bleed bounces, more EXIT mass) had diluted the veto v1 learned for
+    free — 'deep drawdown, but the price keeps coming back' must not
+    fire. Parameterization is deliberately DIFFERENT from the baseline
+    experiment's whipsaw generators (period 6-12 vs 4/8, amplitudes
+    1.0-2.5% / 4.0-9.0%, near-compensating legs vs independent legs), so
+    the baseline families stay held-out instances of the phenomenon.
+    Legs compensate within +-5% per cycle so the level only wanders a
+    few percent — a trending sawtooth would be a bleed, not a sawtooth.
+    Half-period is capped at 4 steps: with half-period 5-6 a 9-price
+    window can sit entirely inside one down-leg, making it identical
+    to a crash window while labelled HOLD — run 2 of v2 training showed
+    that contradiction cost ~3 points of held-out fidelity and blunted
+    the crash boundary. With half <= 4 every window contains both legs,
+    which is exactly the within-window evidence the veto should use.
+    A slight level drift (down to -0.05%/step) is included: real
+    oscillation often sags a little, and a few percent of sag is inside
+    'not a bleed' by design (the anchor TRIM band sits at 10%)."""
+    half = int(rng.integers(2, 5))
+    drift = rng.uniform(-0.0005, 0.0002)
+    if rng.random() < 0.5:
+        m0 = rng.uniform(0.010, 0.025)
+    else:
+        m0 = rng.uniform(0.040, 0.090)
+    rets = list(rng.normal(0.0005, 0.003, 6))
+    for _ in range(int(rng.integers(6, 12))):
+        m = m0 * rng.uniform(0.8, 1.25)   # amplitude redrawn per cycle
+        down = [m * rng.uniform(0.85, 1.05) for _ in range(half)]
+        target = sum(down) * rng.uniform(0.95, 1.05)
+        up_raw = [m * rng.uniform(0.85, 1.05) for _ in range(half)]
+        scale = target / sum(up_raw)
+        rets += [-d + drift for d in down] + [u * scale + drift
+                                              for u in up_raw]
+    rets += list(rng.normal(0.0, 0.003, 6))
+    return _walk(rng, rets), "flat"
+
+
+SCENARIOS_V2 = SCENARIOS + ["slow_grind", "staircase", "bleed_recovery",
+                            "sawtooth"]
+
+
+def gen_series_v2(rng, scenario):
+    if scenario == "slow_grind":
+        return _gen_slow_grind(rng)
+    if scenario == "staircase":
+        return _gen_staircase(rng)
+    if scenario == "bleed_recovery":
+        return _gen_bleed_recovery(rng)
+    if scenario == "sawtooth":
+        return _gen_sawtooth(rng)
+    return gen_series(rng, scenario)
+
+
+def label_window_v2(kind, trough_idx, t, feats):
+    """Teacher v2: the v1 ladder plus the anchor bands (see header).
+    feats: the 7 integer features of the window ending at step t."""
+    dd = feats[3]
+    add = feats[6]
+    last_ret = feats[0]
+    momentum = feats[4]
+    if kind == "flat":
+        return HOLD
+    if kind == "vshape" and t > trough_idx and last_ret > -20_000:
+        return HOLD  # recovering: never sell the bounce (v1 clause, kept)
+    if dd >= 210_000:
+        return EXIT
+    if add >= ANCHOR_EXIT_DD and momentum < 0:
+        return EXIT  # slow-bleed rout, still falling
+    if dd >= 30_000:
+        return TRIM
+    if add >= ANCHOR_TRIM_DD:
+        return TRIM  # sustained bleed the window can no longer see
+    return HOLD
+
+
+def series_samples_v2(rng, scenario):
+    prices, kind = gen_series_v2(rng, scenario)
+    trough_idx = int(np.argmin(prices)) if kind == "vshape" else -1
+    peaks = anchor_stream(prices)
+    out = []
+    for t in range(2, len(prices)):
+        window = prices[max(0, t - 8):t + 1]
+        feats = features7_from_window(window, peaks[t])
+        out.append((feats, label_window_v2(kind, trough_idx, t, feats)))
+    return out
+
+
+# Canonical v2 vectors: the v1 pinned vectors extended with the anchor
+# drawdown each path implies (grind/crash: anchor ~= window peak early in
+# a monotone fall; calm/uptrend: ~0). Actions are teacher-v2 labels.
+PINNED_V2_VECTORS = {
+    "zero":    ([0, 0, 0, 0, 0, 0, 0], HOLD),
+    "calm":    ([1000, 400, 2000, 1000, 3000, 1000, 1000], HOLD),
+    "grind":   ([-12000, -12000, 12000, 92000, -92000, -40000, 92000], TRIM),
+    "crash":   ([-60000, -33000, 65000, 240000, -240000, -100000, 243781], EXIT),
+    "uptrend": ([15000, 12000, 9000, 0, 110000, 45000, 0], HOLD),
+}
+
+
+def _deterministic_path(step_ret, n):
+    prices = [P0]
+    for _ in range(n):
+        prices.append(max(1, int(round(prices[-1] * (1.0 + step_ret)))))
+    return prices
+
+
+SLOWBLEED_PATH = _deterministic_path(-0.011, 70)   # -1.1%/step x 70 (~ -54%)
+UP_PATH = _deterministic_path(0.008, 40)           # +0.8%/step x 40
+
+
+def _cycle_path(multipliers, cycles):
+    prices = [P0]
+    for _ in range(cycles):
+        for m in multipliers:
+            prices.append(max(1, int(round(prices[-1] * m))))
+    return prices
+
+
+# Canonical sawtooth paths (period 4 mild, period 8 violent; legs
+# compensate so the level is flat). Pinned as HOLD anchors — the veto
+# the baseline whipsaw families probe: deep in-window drawdown with the
+# price always coming back is NOT a bleed. Deterministic training
+# constructs, like CALM_PATH / CRASH_PATH; the baseline's random
+# whipsaw generators stay unseen.
+SAWTOOTH_MILD_PATH = _cycle_path([0.983, 0.985, 1.0174, 1.0152], 12)
+SAWTOOTH_VIOLENT_PATH = _cycle_path(
+    [0.930, 0.945, 0.930, 0.945, 1.0664, 1.0664, 1.0664, 1.0664], 6)
+
+
+def build_dataset_v2(rng, series_per_scenario=90):
+    """Same construction as v1 (split by series, i % 5 == 4 held out),
+    over the v1 families plus the slow-bleed families, labelled by
+    teacher v2 with the stateful anchor feature."""
+    train, heldout = [], []
+    for scenario in SCENARIOS_V2:
+        s_train, s_held = [], []
+        for i in range(series_per_scenario):
+            samples = series_samples_v2(rng, scenario)
+            (s_held if i % 5 == 4 else s_train).extend(samples)
+        train.extend(s_train)
+        heldout.extend(s_held)
+    anchors = []
+    for name, (feats, action) in PINNED_V2_VECTORS.items():
+        anchors.append((list(feats), action))
+        for _ in range(24):
+            jit = [int(round(v * rng.uniform(0.9, 1.1))) if v != 0
+                   else int(rng.integers(-500, 501)) for v in feats]
+            anchors.append((jit, action))
+    # Canonical-path anchors: labels come from teacher v2 itself (under
+    # v2 the crash path's 6th step is an anchor EXIT — anchorDD ~19.4%
+    # with negative momentum — where v1's ladder still said TRIM).
+    for path, kind in ((CALM_PATH, "ladder"), (CRASH_PATH, "ladder"),
+                       (SAWTOOTH_MILD_PATH, "flat"),
+                       (SAWTOOTH_VIOLENT_PATH, "flat")):
+        peaks = anchor_stream(path)
+        for t in range(2, len(path)):
+            window = path[max(0, t - 8):t + 1]
+            feats = features7_from_window(window, peaks[t])
+            anchors.append((feats, label_window_v2(kind, -1, t, feats)))
+    train.extend(anchors * 3)
+    rng.shuffle(train)
+    rng.shuffle(heldout)
+    return train, heldout
+
+
+def train_float_v2(X, Y, cw, epochs, lr0, lr1, wd, rng, params=None, ste=False):
+    """train_float with a 7-wide input layer; identical optimiser."""
+    N = X.shape[0]
+    if params is None:
+        W1 = rng.normal(0, 0.7, (HIDDEN_V2, 7)); b1 = np.zeros(HIDDEN_V2)
+        W2 = rng.normal(0, 0.7, (3, HIDDEN_V2)); b2 = np.zeros(3)
+    else:
+        W1, b1, W2, b2 = [p.copy() for p in params]
+    Yoh = np.zeros((N, 3)); Yoh[np.arange(N), Y] = 1.0
+    sample_w = cw[Y]
+    state = {k: [np.zeros_like(p), np.zeros_like(p)]
+             for k, p in (("W1", W1), ("b1", b1), ("W2", W2), ("b2", b2))}
+    for ep in range(epochs):
+        lr = lr1 + 0.5 * (lr0 - lr1) * (1 + math.cos(math.pi * ep / epochs))
+        if ste:
+            W1e = np.round(W1 * 1000) / 1000; b1e = np.round(b1 * SCALE) / SCALE
+            W2e = np.round(W2 * 1000) / 1000; b2e = np.round(b2 * SCALE) / SCALE
+        else:
+            W1e, b1e, W2e, b2e = W1, b1, W2, b2
+        Z1, H, P = _mlp_forward(X, W1e, b1e, W2e, b2e)
+        dZ2 = (P - Yoh) * sample_w[:, None] / N
+        dW2 = dZ2.T @ H + wd * W2e
+        db2 = dZ2.sum(axis=0)
+        dH = dZ2 @ W2e
+        dZ1 = dH * (Z1 > 0)
+        dW1 = dZ1.T @ X + wd * W1e
+        db1 = dZ1.sum(axis=0)
+        for name, p, g in (("W1", W1, dW1), ("b1", b1, db1),
+                           ("W2", W2, dW2), ("b2", b2, db2)):
+            m, v = state[name]
+            m[:] = 0.9 * m + 0.1 * g
+            v[:] = 0.999 * v + 0.001 * g * g
+            mh = m / (1 - 0.9 ** (ep + 1)); vh = v / (1 - 0.999 ** (ep + 1))
+            p -= lr * mh / (np.sqrt(vh) + 1e-8)
+        if ep in (0, epochs // 2, epochs - 1):
+            pred = np.argmax(P, axis=1)
+            acc = float((pred == Y).mean())
+            print(f"    epoch {ep:5d}  train-acc {acc:.4f}  lr {lr:.5f}")
+    return W1, b1, W2, b2
+
+
+def acceptance_v2(w1i, b1i, w2i, b2i, verbose=True):
+    """Canonical v2 behaviours: the pinned vectors, the v1 calm/crash
+    paths (with the anchor stream running), a deterministic slow bleed
+    that MUST reach EXIT through the anchor, and a steady uptrend that
+    must never act. Returns (ok, report)."""
+    ok = True
+    report = []
+    for name, (feats, exp_action) in PINNED_V2_VECTORS.items():
+        action, logits, _ = forward_int_v2(feats, w1i, b1i, w2i, b2i)
+        srt = sorted(logits, reverse=True)
+        good = action == exp_action
+        ok &= good
+        report.append(f"vector {name:8s} -> {ACTION_NAMES[action]} "
+                      f"(want {ACTION_NAMES[exp_action]}) margin {srt[0] - srt[1]}")
+
+    def path_actions(path):
+        peaks = anchor_stream(path)
+        acts = []
+        for t in range(2, len(path)):
+            feats = features7_from_window(path[max(0, t - 8):t + 1], peaks[t])
+            acts.append(forward_int_v2(feats, w1i, b1i, w2i, b2i)[0])
+        return acts
+
+    calm = path_actions(CALM_PATH)
+    good = calm == [HOLD, HOLD, HOLD]
+    ok &= good
+    report.append(f"calm path   -> {[ACTION_NAMES[a] for a in calm]} (want HOLD x3)")
+    crash = path_actions(CRASH_PATH)
+    # Expected sequence under teacher v2 (computed, not copied from v1:
+    # the anchor rule legitimately advances this path's EXIT by one step).
+    peaks = anchor_stream(CRASH_PATH)
+    crash_exp = []
+    for t in range(2, len(CRASH_PATH)):
+        feats = features7_from_window(CRASH_PATH[max(0, t - 8):t + 1], peaks[t])
+        crash_exp.append(label_window_v2("ladder", -1, t, feats))
+    good = crash == crash_exp
+    ok &= good
+    report.append(f"crash path  -> {[ACTION_NAMES[a] for a in crash]} "
+                  f"(want teacher v2: {[ACTION_NAMES[a] for a in crash_exp]})")
+    slow = path_actions(SLOWBLEED_PATH)
+    good = EXIT in slow and slow[-1] == EXIT
+    ok &= good
+    n_exit = sum(1 for a in slow if a == EXIT)
+    report.append(f"slow bleed  -> {n_exit} EXIT of {len(slow)} steps, "
+                  f"ends {ACTION_NAMES[slow[-1]]} (want >=1 EXIT, ends EXIT)")
+    up = path_actions(UP_PATH)
+    good = all(a == HOLD for a in up)
+    ok &= good
+    report.append(f"uptrend path-> {len(up)} steps all HOLD: {good}")
+    if verbose:
+        for line in report:
+            print("   ", line)
+    return ok, report
+
+
+def write_weights_v2_sol(w1i, b1i, w2i, b2i, metrics):
+    header = f"""// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.29;
+
+/// @title SentinelWeightsV2 — CANDIDATE quantized weights for the Sentinel
+///        MLP v2 (7 -> 12 -> 3). NOT wired into any contract; the shipped
+///        model remains SentinelWeights (v1). See ANCHOR.md for the full
+///        design + validation report.
+/// @notice TRAINED 2026-11-16 (offline) by tools/train.py v2 path
+///         (seed {SEED_V2}; {metrics['series']} series across calm /
+///         uptrend / chop / grind-down / crash / V-recovery / slow-grind /
+///         staircase / bleed-with-recoveries / sawtooth, labelled by teacher v2: the
+///         v1 ladder — drawdown >= 21% -> EXIT, 3-21% -> TRIM, recovering
+///         -> HOLD — plus anchor bands on feature 6 (anchorDrawdown, from
+///         a leaky peak decaying x999/1000 per update): anchorDrawdown
+///         >= 18% with negative window momentum -> EXIT, >= 10% -> TRIM).
+///         Dataset: {metrics['train_n']} train / {metrics['held_n']}
+///         held-out windows. Float model accuracy: train
+///         {metrics['float_train']:.4f}, held-out {metrics['float_held']:.4f}.
+///         Quantized integer model (this file): train
+///         {metrics['int_train']:.4f}, held-out {metrics['int_held']:.4f}.
+///         Do not hand-edit the tables — regenerate with
+///         `python3 tools/train.py v2`.
+/// @dev Quantization: weights are integers scaled by 1000; biases are in
+///      the activation scale (features/logits scaled by 1e6). Output
+///      layout: index 0 = HOLD, 1 = TRIM, 2 = EXIT.
+library SentinelWeightsV2 {{"""
+    H = len(b1i)
+    w1 = _fmt_table(w1i, 7, [f"h{i}" for i in range(H)])
+    b1 = "\n".join(
+        f"            int256({v}){'' if i == H - 1 else ','} // h{i}"
+        for i, v in enumerate(b1i))
+    w2 = _fmt_table(w2i, H, ["HOLD", "TRIM", "EXIT"])
+    b2 = ", ".join(f"int256({v})" for v in b2i)
+    body = f"""
+    /// @notice Layer 1 weights, row-major [hidden][feature], {H} * 7 = {len(w1i)} entries.
+    ///         Feature order: [lastReturn, meanReturn, volatility, drawdown, momentum, priceVsMean, anchorDrawdown].
+    function weights1() internal pure returns (int256[{len(w1i)}] memory w) {{
+        w = [
+{w1}
+        ];
+    }}
+
+    /// @notice Layer 1 biases (activation scale, 1e6 = 1.0).
+    function biases1() internal pure returns (int256[{H}] memory b) {{
+        b = [
+{b1}
+        ];
+    }}
+
+    /// @notice Layer 2 weights, row-major [action][hidden], 3 * {H} = {len(w2i)} entries.
+    function weights2() internal pure returns (int256[{len(w2i)}] memory w) {{
+        w = [
+{w2}
+        ];
+    }}
+
+    /// @notice Layer 2 biases (logit scale, 1e6 = 1.0).
+    function biases2() internal pure returns (int256[3] memory b) {{
+        b = [{b2}];
+    }}
+}}
+"""
+    WEIGHTS_V2_SOL.write_text(header + body)
+
+
+def main_v2():
+    verify_mirror_against_phase1()
+
+    rng = np.random.default_rng(SEED_V2)
+    train, heldout = build_dataset_v2(rng)
+    Xtr = np.array([f for f, _ in train], dtype=np.float64) / SCALE
+    Ytr = np.array([y for _, y in train])
+    Xhe = np.array([f for f, _ in heldout], dtype=np.float64) / SCALE
+    Yhe = np.array([y for _, y in heldout])
+    Ftr = np.array([f for f, _ in train], dtype=np.int64)
+    Fhe = np.array([f for f, _ in heldout], dtype=np.int64)
+    counts = np.bincount(Ytr, minlength=3)
+    print(f"[data v2] train {len(train)} windows {dict(zip(ACTION_NAMES, counts))}, "
+          f"held-out {len(heldout)}")
+    cw = (len(Ytr) / (3.0 * np.maximum(counts, 1))).astype(np.float64)
+
+    print("[train v2] float phase")
+    params = train_float_v2(Xtr, Ytr, cw, epochs=4000, lr0=0.01, lr1=0.001,
+                            wd=1e-4, rng=np.random.default_rng(SEED_V2 + 1))
+    W1, b1, W2, b2 = params
+    _, _, P = _mlp_forward(Xtr, W1, b1, W2, b2)
+    float_train = float((np.argmax(P, axis=1) == Ytr).mean())
+    _, _, P = _mlp_forward(Xhe, W1, b1, W2, b2)
+    float_held = float((np.argmax(P, axis=1) == Yhe).mean())
+    print(f"[train v2] float accuracy: train {float_train:.4f} held-out {float_held:.4f}")
+
+    for round_ in range(5):
+        w1i, b1i, w2i, b2i = quantize(W1, b1, W2, b2)
+        pred_tr, _, _ = forward_int_vec_v2(Ftr, w1i, b1i, w2i, b2i)
+        pred_he, _, _ = forward_int_vec_v2(Fhe, w1i, b1i, w2i, b2i)
+        int_train = float((pred_tr == Ytr).mean())
+        int_held = float((pred_he == Yhe).mean())
+        print(f"[quantize v2 round {round_}] integer accuracy: "
+              f"train {int_train:.4f} held-out {int_held:.4f}")
+        ok, _ = acceptance_v2(w1i, b1i, w2i, b2i)
+        if ok:
+            break
+        print("[qat v2] acceptance failed — quantization-aware fine-tune round")
+        W1, b1, W2, b2 = train_float_v2(Xtr, Ytr, cw, epochs=600, lr0=0.003,
+                                        lr1=0.0005, wd=1e-4,
+                                        rng=np.random.default_rng(SEED_V2 + 2 + round_),
+                                        params=(W1, b1, W2, b2), ste=True)
+    else:
+        print("ERROR: v2 acceptance still failing after QAT rounds; "
+              "weights NOT written.", file=sys.stderr)
+        return 1
+    print("[acceptance v2] all canonical checks pass with the integer model")
+
+    per_class = {}
+    for k in range(3):
+        mask = Yhe == k
+        per_class[ACTION_NAMES[k]] = float((pred_he[mask] == k).mean())
+    print(f"[eval v2] integer held-out accuracy by class: {per_class}")
+    metrics = {
+        "series": 90 * len(SCENARIOS_V2),
+        "train_n": len(train), "held_n": len(heldout),
+        "float_train": float_train, "float_held": float_held,
+        "int_train": int_train, "int_held": int_held,
+        "int_held_by_class": per_class,
+    }
+    write_weights_v2_sol(w1i, b1i, w2i, b2i, metrics)
+    print(f"[codegen v2] wrote {WEIGHTS_V2_SOL}")
+
+    vectors = {"model": {}, "metrics": metrics}
+    for name, (feats, _) in PINNED_V2_VECTORS.items():
+        action, logits, hidden = forward_int_v2(feats, w1i, b1i, w2i, b2i)
+        vectors["model"][name] = {"features": feats, "action": action,
+                                  "logits": logits, "hidden": hidden}
+    VECTORS_V2_JSON.write_text(json.dumps(vectors, indent=2))
+    print(f"[codegen v2] wrote {VECTORS_V2_JSON}")
+    print(json.dumps(metrics, indent=2))
+    return 0
+
+
 if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] == "v2":
+        sys.exit(main_v2())
     sys.exit(main())
