@@ -271,3 +271,58 @@ mUSDC 0.0343135 = the exact sum of the four fills, `protectionCount
 = 4`, position 0, closed. One deviation from the offline mirror is
 recorded in TRIO4.md §5 (a TRIM on the recovery's first step, inside
 the teacher's anchor-TRIM band).
+
+## 9. Trio #5 addendum — the re-risk release (2026-11-19)
+
+Full record: [TRIO5.md](TRIO5.md). Tests now **144/144** (93 + 27
+for the single-shot re-risk candidate + 24 for the shipped
+scale-in). Trio #5 adds the one capability trios #1–#4 lacked:
+getting back in after a de-risk.
+
+**What shipped.** A rule-based episode machine in
+`SentinelReactiveV5` — model v2 weights, dedup and TRIM suppression
+bit-identical to trio #4 — driving `SentinelVaultV4` through the
+two-way `SentinelSwapV2` desk: after a fired TRIM/EXIT, **tranche
+1** buys back with half the safe proceeds at the ≥ 97% reclaim of
+the episode anchor (≥ 3 updates later); **tranche 2** spends the
+rest when the anchor prints a new high above the episode anchor.
+
+**Why this shape — and its measured cost.** Five trigger variants
+were run over 5 synthetic streams + the 5 real Binance episodes
+against never re-risking, under a winner rule fixed before the run
+([RERISK-VARIANTS.md](RERISK-VARIANTS.md)). Scale-in (variant B)
+won (mean delta −40.41; single-shot V1 −103.57; exit-price C
+−41.91; momentum D −79.82; differentiated E −81.29). The same table
+says, plainly: **all five variants are negative on average** —
+re-risk paid in the real recoveries (sep2023 +25.43, feb2024
++89.56 for B) and cost in the real crashes (may2021 −145.91,
+jun2022 −74.07, aug2024 −93.89). It is shipped and documented as
+the least-cost way to own the two-way capability, never as a
+profit feature.
+
+**Deployments (all Sourcify exact_match, creation + runtime):**
+`SentinelReactiveV5` #5 `0x0Fdab4F59e877B2f9f695Bd285b72831336caCd4`
+(Lasna, Chainlink origin, funded 1.05 lREACT + 0.10 top-up);
+`SentinelSwapV2` #5 `0x80c3BF688b08ac03D3aE7396cDd96770F7ce572a`;
+`SentinelVaultV4` #5 `0xb13BF7Ff153e7f6304735EC4199B006Fd4857Ac9`
+(position 0.0001 WETH); rehearsal trio #5R: `MockPriceOracle`
+`0xfC2E4b2BbFD195B4e56FCd1aa22F32ED7D15E2c3`, `SentinelReactiveV5`
+`0x1123b38e933D0a87D5846456c1ed6E94c936e3e1` (funded 1.40 lREACT),
+`SentinelSwapV2` `0x4357e1296f186Cb945578304EFca16219D83Ec0E`,
+`SentinelVaultV4` `0x242719F815141ad08286f29a23025b9244efd60e`.
+
+**Live proof.** Rehearsal trio: 31 pushes → TRIM / EXIT /
+RERISK / RERISK_FINAL / TRIM / EXIT callbacks (callback txs
+`0x695bc61d…`, `0x12ad313a…`, `0xa73e1f2c…`, `0xe0bf60a3…`,
+`0xed71abeb…`, `0x9cf87516…`) — the exact sequence the evaluation
+mirror predicted, update for update; 12 `TrimSuppressed` events;
+vault mUSDC 0.033663108000104059 = the mirror's prediction to the
+wei; the desk ended holding exactly the 0.0004 WETH ever deposited;
+`protectionCount = 6`, `reriskCount = 2`, closed. Main trio: 3 real
+Chainlink emissions ingested ($1,803.58151417 — a quiet feed; two
+were heartbeat re-emissions of the same round), HOLD (warm-up),
+react txs `0xc37d27ae…` / `0x5fddb9a1…` / `0xdd726c29…`. One
+process incident is recorded in TRIO5.md §3 (the rehearsal driver
+was killed by a service restart after update 22 and resumed from
+verified on-chain state; no push was duplicated and contract
+behaviour shows no deviation).

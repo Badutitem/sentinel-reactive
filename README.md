@@ -381,6 +381,45 @@ four fills to the last digit (0.0343135). Trio #3 — topped up to
 1.5349808 lREACT earlier the same day — also ingested this window and
 stands at 1.46745 lREACT.
 
+### Trio #5 — the re-risk release (2026-11-19)
+
+Full record: [TRIO5.md](TRIO5.md); design + variant evaluation:
+[TRIO5-DESIGN.md](TRIO5-DESIGN.md) / [RERISK-VARIANTS.md](RERISK-VARIANTS.md).
+Trios #1–#4 de-risk in one direction only; trio #5 adds the way back
+in. A **rule-based episode machine** in `SentinelReactiveV5` (the
+model, its weights, dedup and TRIM suppression are bit-identical to
+trio #4) watches each fired TRIM/EXIT: once ≥ 3 updates pass and the
+price reclaims **≥ 97% of the episode anchor**, `SentinelVaultV4`
+buys back with **half** the safe proceeds (tranche 1); when the
+anchor then exceeds the episode anchor — a new high — it spends
+**the rest** (tranche 2). This scale-in shape (variant B) won a
+pre-registered 10-scenario evaluation against four other triggers;
+the same evaluation is why the feature is **not** sold as a profit
+feature: every variant, B included, is negative on average against
+never re-risking (B −40.41 mean delta vs V1's −103.57) — it paid in
+the real recoveries and cost in the real crashes. B is the
+least-cost way to own the two-way capability.
+
+| Contract | Chain | Address | Deploy tx |
+|----------|-------|---------|-----------|
+| `SentinelReactiveV5` (#5) | Lasna (5318007) | `0x0Fdab4F59e877B2f9f695Bd285b72831336caCd4` | `0x7cb7dc303b0748e9d0319f3054392f7a248ae823fdb5b8f5c29d4dfdd486bd33` |
+| `SentinelSwapV2` (#5) | Base Sepolia (84532) | `0x80c3BF688b08ac03D3aE7396cDd96770F7ce572a` | `0xf7d4ca845fa7e13128b22b8c186e78ee7655a4302f6127ac3676133e80fe610d` |
+| `SentinelVaultV4` (#5) | Base Sepolia (84532) | `0xb13BF7Ff153e7f6304735EC4199B006Fd4857Ac9` | `0x9dd848a16b79fd4354d41ed4f614ff4533b9327538354a52eb3622989b896775` |
+
+All **Sourcify-verified (exact match)**, plus a rehearsal trio
+(#5R, mock origin: reactive `0x1123b38e933D0a87D5846456c1ed6E94c936e3e1`).
+Live proof: the rehearsal trio ran the full two-way loop live — calm
+HOLDs; a −2%/step bleed with **TRIM, 7 suppressed repeat TRIM votes
+and EXIT**; a recovery that fired **re-risk tranche 1 at the 97%
+reclaim ($96.5, half spend)** and **tranche 2 at the new anchor high
+($99.5, the rest)**; a re-arm; and a second bleed to EXIT — ending
+with the vault's mUSDC balance equal to the mirror's prediction to
+the wei (0.033663108000104059) and every deposited WETH wei accounted
+for in the desk. The main reactive ingested three real Chainlink
+emissions ($1,803.58151417; the feed was quiet — two were heartbeat
+re-emissions of the same round), HOLD in warm-up, and stands at
+1.0758959 lREACT after a top-up.
+
 ## Build & test
 
 Requires [Foundry](https://getfoundry.sh) (solc 0.8.29). Dependencies
@@ -388,7 +427,7 @@ Requires [Foundry](https://getfoundry.sh) (solc 0.8.29). Dependencies
 
 ```bash
 forge build
-forge test        # 93 tests, 14 suites
+forge test        # 144 tests, 23 suites
 ```
 
 | Suite | Covers |
@@ -404,6 +443,15 @@ forge test        # 93 tests, 14 suites
 | `SentinelReactiveV3.t.sol` (12) | Trio #4 repairs: replay dedup (same log 3× = 1 update; replay of the firing log cannot re-fire; tx-hash/log-index identity; replay bursts leave the anchor untouched); TRIM suppression (30 repeat TRIM votes → 1 callback; 18% anchorDD bypass fires; EXIT never suppressed); V2 crash-path parity on the V3 contract |
 | `SentinelAdversarialV3.t.sol` (7) | The adversarial suite re-run against V3: stale/frozen feed, both whipsaw shapes, slow-grind EXIT, re-arm — with case (c) re-pinned to "replay ignored entirely" and case (e) pinning the still-open post-recovery blind window |
 | `SentinelReactiveV3EndToEnd.t.sol` (1) | Full V3 loop: calm → no callback; −2%/step bleed → TRIM then EXIT callbacks close a real vault (balances asserted) |
+| `SentinelSwapV2.t.sol` (9) | Two-way desk: forward carry-over; reverse full fill; partial fill on low inventory; empty-inventory / zero-price / zero-amount no-ops; onlyVault both directions; exact same-price round trip |
+| `SentinelVaultV3.t.sol` (9) | Single-shot re-risk (the evaluated-and-replaced V1 candidate): buyback after EXIT/TRIM at exact desk math; partial fill; no-ops leave a closed position untouched; protection works again after re-risk |
+| `SentinelReactiveV4.t.sol` (7) | V1 episode machine: crash-path parity; reclaim fires exactly one re-risk; 90% recovery never fires; 3-update minimum; new anchor high cancels |
+| `SentinelReactiveV4EndToEnd.t.sol` (1) | Full V1 cycle: TRIM → EXIT → RERISK → EXIT with desk-exact balances at every stage |
+| `SentinelAdversarialV4.t.sol` (1) | Square wave: exactly 3 re-risks in 3 crash→reclaim→crash cycles — the one-per-episode bound saturated, never broken |
+| `SentinelVaultV4.t.sol` (11) | Variant-B tranches: tranche 1 spends exactly half after EXIT and after TRIM; tranche 2 spends the rest (both together restore the V1 buyback at pinned prices); partial fills; no-ops for both tranches; guards on both actions |
+| `SentinelReactiveV5.t.sol` (11) | Variant-B episode machine: tranche 1 on the reclaim with the episode staying open; tranche 2 on the new anchor high; pre-minimum cancel preserved; the succ_V ordering case (tranche 1 fires on the above-anchor print V1 cancelled on); EXIT after a completed re-risk opens a fresh episode |
+| `SentinelReactiveV5EndToEnd.t.sol` (1) | Full two-episode B cycle: TRIM → EXIT → tranche 1 → tranche 2 → EXIT → tranche 1 of the new episode, desk-exact throughout |
+| `SentinelAdversarialV5.t.sol` (1) | Square wave under B: 3 re-risk events, all tranche 1, 0 tranche 2 (the wave's reclaim legs never print a new anchor high) inside the same 11 callbacks |
 
 ## Limitations (honest list)
 
@@ -488,6 +536,25 @@ forge test        # 93 tests, 14 suites
   vote-level sawtooth flap itself is unchanged — it is the model's,
   and its firing consequence is now bounded by suppression as well as
   the cooldown).
+- **Re-risk buys strength, not the dip — and is net-negative on the
+  measured evidence (trio #5).** The re-entry only fires at ≥ 97% of
+  the episode anchor (tranche 1) and at a new anchor high (tranche
+  2), so the buyback price is by construction above the exit price
+  whenever the exit happened deep. Evaluated over 5 synthetic
+  streams + 5 real Binance episodes against never re-risking
+  ([RERISK-VARIANTS.md](RERISK-VARIANTS.md)), **every** trigger
+  variant loses on average — the shipped scale-in (variant B) least
+  (−40.41 mean delta; the single-shot rule it replaced: −103.57) —
+  because real crashes reclaim the band repeatedly on dead-cat
+  bounces (11 re-risk callbacks in May 2021 alone) while genuine
+  recoveries are the minority of episodes. Trio #5 ships B as the
+  least-cost way to own the two-way capability a one-way guardian
+  lacks; it is not a return feature, and no number in this repo
+  presents it as one. Two structural exposures come with it: after
+  tranche 1 there is no cancel (a rollover leaves the vault half-in
+  through the next decline until protection acts), and tranche 2 can
+  fire on the update immediately after tranche 1 when tranche 1
+  fired on an above-anchor print.
 - **Testnet only.** Everything runs on Base Sepolia + Lasna testnet with
   testnet funds; nothing here guards real money.
 - **Narrow by construction.** One token, one oracle (immutable), a 9-price

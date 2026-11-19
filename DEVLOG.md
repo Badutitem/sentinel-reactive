@@ -447,3 +447,57 @@ emissions ($1,770.91 → $1,775.53614611; syncs `0xd8303e1d…`,
 to the wei, HOLD. Trio #3 ingested the same emissions (1.46745 lREACT
 after). Fuel after: R4 1.010342, R4R 0.1856625 lREACT; dev 0.2296481
 lREACT / 0.950149 Sepolia ETH / 0.0093168 Base Sepolia ETH.
+
+## Trio #5 — re-risk release (2026-11-19)
+
+Closes the one structural gap vs two-way rivals: after a de-risk,
+Sentinel could never get back in. Full record: TRIO5.md; design:
+TRIO5-DESIGN.md; evaluation: RERISK-VARIANTS.md.
+
+**What shipped** (`SentinelReactiveV5` + `SentinelVaultV4` +
+`SentinelSwapV2` redeployed; V1–V4 files untouched): a rule-based
+episode machine over the unchanged v2 pipeline — variant **B
+(scale-in)**, winner of the pre-registered 10-scenario evaluation
+(5 synthetic + 5 real Binance episodes, mean delta vs no-rerisk:
+B −40.41, C −41.91, D −79.82, E −81.29, V1 −103.57). Tranche 1
+(action 3) spends half the safe balance at the ≥97% reclaim of the
+episode anchor (≥3 updates after the de-risk, reclaim checked
+before cancel); tranche 2 (action 4) spends the rest on a new
+anchor high above the episode anchor. **Honest cost, stated
+everywhere:** every variant is negative on average vs never
+re-risking — B paid in sep2023/feb2024, cost in may2021/jun2022/
+aug2024 (dead-cat reclaims). Least-cost two-way capability, not a
+profit feature. 51 new tests across the V4/V5 suites → **144/144**.
+
+**Funding.** Two faucet rounds on Sepolia (txs `0x32a76c10…`,
+`0x020734f2…`; 0.02 ETH → +2.1 lREACT each; dev Lasna 0.2296481 →
+4.4296481). No bridge needed — Base Sepolia carried in 0.0093165
+ETH, enough for all Base deploys/seeds/wraps/pushes.
+
+**Deployments** (all Sourcify exact_match): reactive #5
+`0x0Fdab4F5…aCd4` (Lasna, 1.05 lREACT + 0.10 top-up), swap #5
+`0x80c3BF68…572a`, vault #5 `0xb13BF7Ff…Ac9` (0.0001 WETH);
+rehearsal trio #5R: oracle `0xfC2E4b2B…E2c3`, reactive
+`0x1123b38e…6e3e1` (1.40 lREACT), swap `0x4357e129…Ec0E`, vault
+`0x242719F8…d60e` (0.0002 WETH).
+
+**Live proof.** Rehearsal (`tools/rehearse_v5.sh`, 31 pushes,
+mirror-validated series): calm HOLDs; bleed → TRIM (cb
+`0x695bc61d…`), 7 TrimSuppressed, EXIT (cb `0x12ad313a…`);
+recovery → tranche 1 @ $96.5 (cb `0xa73e1f2c…`, half spend),
+tranche 2 @ $99.5 new high (cb `0xe0bf60a3…`); re-arm; second
+bleed → TRIM (cb `0xed71abeb…`), 5 TrimSuppressed, EXIT (cb
+`0x9cf87516…`). Callback sequence identical to the mirror's
+prediction; vault mUSDC 0.033663108000104059 to the wei; desk
+holds exactly the 0.0004 WETH ever deposited; protections 6,
+rerisks 2, closed. **Process incident:** the driver was killed
+by a service restart after update 22; the /tmp transcript was
+lost, state was rebuilt from chain reads and the run resumed
+(`tools/rehearse_v5_resume.sh`, pushes 23–31) — 31 pushes, 31
+updates, no duplicate; origin txs for pushes 18–22 recovered
+from the oracle's history. Main trio: 3 real Chainlink emissions
+($1,803.58151417 — quiet feed, two heartbeat re-emissions),
+HOLD warm-up; trios #3/#4 ingested the same window. Fuel after:
+R5 1.0758959, R5R 0.314275, R4 0.8655486, R3 1.3477034 lREACT;
+dev 1.5172008 lREACT / 0.910149 Sepolia ETH / 0.0085791 Base
+Sepolia ETH.
