@@ -14,9 +14,9 @@ human watching charts at 3 a.m.
 | 🏛️ **DoraHacks build** | https://dorahacks.io/build/51122 |
 | 🎯 **Model accuracy** | **97.47%** on held-out series (shipped integer model; EXIT calls 100%) |
 | ⚡ **Firing loop** | **≈ 2 s** end-to-end (origin → reactive → callback), proven live on testnet |
-| 🧪 **Tests** | **73/73** Foundry tests pass, including exact-logit pins, a full-loop end-to-end suite, the real-asset vault suite, the Chainlink adapter suite, the model-v2 suite (bit-exact feature/logit parity against the training mirror) and an adversarial suite (stale feed, whipsaw, replay, slow-grind and re-arm behaviour — see EVIDENCE.md) |
+| 🧪 **Tests** | **93/93** Foundry tests pass, including exact-logit pins, a full-loop end-to-end suite, the real-asset vault suite, the Chainlink adapter suite, the model-v2 suite (bit-exact feature/logit parity against the training mirror), an adversarial suite (stale feed, whipsaw, replay, slow-grind and re-arm behaviour — see EVIDENCE.md) and the trio #4 repair suites (replay deduplication, TRIM suppression, re-pinned adversarial cases — see TRIO4.md) |
 | 🏦 **Vault** | **Real ERC20 position** — `SentinelVaultV2` holds WETH on Base Sepolia and de-risks into MockUSDC through `SentinelSwap` (live proof below) |
-| 📡 **Price feed** | **Three live trios** — Demo A on `MockPriceOracle` (deterministic firing proof); Demo B on the real Chainlink ETH/USD feed via `ChainlinkPriceAdapter`, reactive subscribed to WETH; trio #3 runs the anchor-aware **model v2** on the same Chainlink feed (live proof below) |
+| 📡 **Price feed** | **Four live trios** — Demo A on `MockPriceOracle` (deterministic firing proof); Demo B on the real Chainlink ETH/USD feed via `ChainlinkPriceAdapter`, reactive subscribed to WETH; trio #3 runs the anchor-aware **model v2** on the same Chainlink feed; trio #4 adds replay deduplication + TRIM suppression on the same feed, plus its own mock-origin rehearsal trio (see TRIO4.md) |
 | 🧠 **Inference** | **100% on-chain** — an MLP forward pass in Solidity fixed point, inside the reactive contract |
 
 ## Why
@@ -347,6 +347,40 @@ the offline validation above. End state: reactive V2 `updates = 8`,
 0.0349808 lREACT remaining of its 0.272 funding; vault #3 armed and
 untouched; swap #3 reserve intact at 1,000 MockUSDC.
 
+### Trio #4 — the repair release (2026-11-19)
+
+Full record: [TRIO4.md](TRIO4.md). `SentinelReactiveV3` = the V2 body
+plus two contract-level repairs, running the **unchanged model v2
+weights**: **(1) replay deduplication** — every processed origin log is
+recorded by `keccak256(chainId, contract, txHash, logIndex)` and a
+replay is ignored before it can touch the window, the anchor or a
+callback (`duplicatesIgnored` counter); **(2) TRIM suppression** —
+after a TRIM fires, further TRIM votes are suppressed for 10 updates
+unless EXIT conditions hold (anchorDD ≥ 18% + negative momentum);
+EXIT votes are never suppressed. The third repair — a retrained model
+v3 for the post-recovery blind window — was attempted three times,
+failed its validation gates all three times (closing the recovery gap
+cost 1–2 points of held-out fidelity every time), and was **descoped**:
+the blind window remains an open limitation, documented in TRIO4.md §3.
+
+| Contract | Chain | Address | Deploy tx |
+|----------|-------|---------|-----------|
+| `SentinelReactiveV3` (#4) | Lasna (5318007) | `0xcE8615E0b19Ce81793aE34E6d7B8C33C440d2AA3` | `0xf484254377619ad7f06aadfb34f63539f63ea73c8501350c568b1c8c630f15d9` |
+| `SentinelSwap` (#4) | Base Sepolia (84532) | `0xfc25B4e4961e1c6588CC1Ac7BbbdeCC3E88BBf05` | `0x874d0f04982758b105a898f8dafd00fb57975981a7ba95d188227517fcb3d85c` |
+| `SentinelVaultV2` (#4) | Base Sepolia (84532) | `0xBd5d3146D62d4c6A6360483908e0429A1E6f9d06` | `0xe6a9f3a5c60ac56368ac007639fff3b2c2dbb31bbc3aa50b316421972d9e2096` |
+
+All **Sourcify-verified (exact match)**, plus a rehearsal trio
+(#4R, mock origin: reactive `0xC497213aBFCfa0Dee320121B9245D93D3d9952B8`).
+Live proof: the main reactive ingested real Chainlink emissions
+($1,770.91 → $1,775.54) and re-anchored to the wei; the rehearsal trio
+ran the full loop live — calm HOLDs, a −2%/step bleed with **TRIM,
+7 suppressed repeat TRIM votes (on-chain `TrimSuppressed` events) and
+EXIT**, a re-arm, and a post-recovery −3%/step decline that EXITed at
+step 8 — ending with the vault's mUSDC balance equal to the sum of the
+four fills to the last digit (0.0343135). Trio #3 — topped up to
+1.5349808 lREACT earlier the same day — also ingested this window and
+stands at 1.46745 lREACT.
+
 ## Build & test
 
 Requires [Foundry](https://getfoundry.sh) (solc 0.8.29). Dependencies
@@ -354,7 +388,7 @@ Requires [Foundry](https://getfoundry.sh) (solc 0.8.29). Dependencies
 
 ```bash
 forge build
-forge test        # 73 tests, 10 suites
+forge test        # 93 tests, 14 suites
 ```
 
 | Suite | Covers |
@@ -367,6 +401,9 @@ forge test        # 73 tests, 10 suites
 | `SentinelVaultV2.t.sol` (11) | Real-balance position view; TRIM sells exactly half, EXIT empties and closes; both auth guards revert; re-arm after EXIT; end-to-end loop asserting actual ERC20 balances move |
 | `ChainlinkPriceAdapter.t.sol` (11) | Poll-based relay: first-sync emission + ×1e10 normalisation, event-shape equality with `MockPriceOracle`, deadband suppression, min-interval throttle, heartbeat re-emission, stale / incomplete / zero-round rejection, swap priced off the adapter |
 | `SentinelReactiveV2.t.sol` (13, two suites) | Feature/logit/anchor parity bit-exact against the `train.py` mirror (crash path + −1.1%/step slow bleed, incl. its first EXIT at anchorDD 18.2%); anchor decay over 100 flat updates; end-to-end −2%/step bleed through MockPriceOracle + VaultV2 closes the vault (v1 on the identical stream never votes EXIT); cooldown fired-state reset A/B; anchor initialisation |
+| `SentinelReactiveV3.t.sol` (12) | Trio #4 repairs: replay dedup (same log 3× = 1 update; replay of the firing log cannot re-fire; tx-hash/log-index identity; replay bursts leave the anchor untouched); TRIM suppression (30 repeat TRIM votes → 1 callback; 18% anchorDD bypass fires; EXIT never suppressed); V2 crash-path parity on the V3 contract |
+| `SentinelAdversarialV3.t.sol` (7) | The adversarial suite re-run against V3: stale/frozen feed, both whipsaw shapes, slow-grind EXIT, re-arm — with case (c) re-pinned to "replay ignored entirely" and case (e) pinning the still-open post-recovery blind window |
+| `SentinelReactiveV3EndToEnd.t.sol` (1) | Full V3 loop: calm → no callback; −2%/step bleed → TRIM then EXIT callbacks close a real vault (balances asserted) |
 
 ## Limitations (honest list)
 
@@ -437,6 +474,20 @@ forge test        # 73 tests, 10 suites
   0.000139 ETH in total at phase-3 preflight). The trio is fully wired
   and live-proven; topping the position up needs only a dev-wallet
   refund — no redeploy, no rewiring.
+- **Post-recovery blind window — still open (trio #4).** If a fresh
+  decline starts immediately after a sharp V-recovery to a new high,
+  the model votes HOLD for the first 7 steps at −3%/step (≈ −19% from
+  the peak) before protection engages. A retrained model v3 was
+  attempted three times for trio #4 and descoped — every variant that
+  closed the gap failed the held-out fidelity gate (TRIO4.md §3); the
+  plausible fix is an 8th feature, a new architecture. Trio #4 *does*
+  fix the other two documented weaknesses: **replay deduplication**
+  (trios #1–#3 ingest redelivered logs as fresh updates; trio #4
+  ignores them) and **TRIM vote flap** (trio #4 suppresses repeat TRIM
+  votes for 10 updates after a fire, EXIT conditions excepted; the
+  vote-level sawtooth flap itself is unchanged — it is the model's,
+  and its firing consequence is now bounded by suppression as well as
+  the cooldown).
 - **Testnet only.** Everything runs on Base Sepolia + Lasna testnet with
   testnet funds; nothing here guards real money.
 - **Narrow by construction.** One token, one oracle (immutable), a 9-price

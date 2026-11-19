@@ -217,3 +217,57 @@ in debt (network semantics).
   ([BACKTEST.md](BACKTEST.md)) is evaluation only, never training.
 - **Testnet only, narrow by construction.** Base Sepolia + Lasna, one
   token, one immutable oracle, behaviour frozen into shipped weights.
+
+## 8. Trio #4 addendum — the repair release (2026-11-19)
+
+Full record: [TRIO4.md](TRIO4.md). Tests now **93/93** (73 + 20 new).
+The §6 "top-up BLOCKED" note is superseded: the user refunded the dev
+wallet with 1 Sepolia ETH on 2026-11-19, trio #3 was topped up to
+1.5349808 lREACT via the on-chain faucet route, and trio #4 was funded
+from the same pool.
+
+**The three documented weaknesses, disposition:**
+
+1. **Replay dedup — FIXED and shipped** in `SentinelReactiveV3`
+   (log-identity mapping; §7's "No replay deduplication" bullet now
+   applies to trios #1–#3 only). Proven by 6 dedicated unit tests +
+   the re-pinned adversarial case (c); live `duplicatesIgnored == 0`
+   on both trio #4 reactives (the network delivers each log once, so
+   the path is unit-proven by design).
+2. **Whipsaw TRIM flap — HARDENED and shipped**: TRIM suppression for
+   10 updates after a TRIM fire, bypassed only by EXIT conditions
+   (anchorDD ≥ 18% + negative momentum); EXIT never suppressed.
+   Unit-proven (30 repeat votes → 1 callback; bypass fires at
+   anchorDD 18.18%) and **live-proven**: 7 on-chain `TrimSuppressed`
+   events during the rehearsal bleed, exactly one TRIM callback.
+3. **Post-recovery blind window — NOT fixed; model v3 descoped.**
+   Three retraining attempts (new fresh-peak decline families +
+   recovery anchors; width / emphasis / fine-tune variants) all closed
+   the recovery gap (TRIM/EXIT at step 1) but failed the held-out
+   fidelity gate (93.64–95.05% vs the required ≥ 95.41%) — the region
+   overlaps benign post-rally HOLD windows in the 7-feature space.
+   Trio #4 therefore ships the **v2 weights unchanged**, and the blind
+   window was re-measured live in the rehearsal: HOLD ×7, EXIT at
+   step 8 of a −3%/step decline after a new high. Gate table and
+   reasoning: TRIO4.md §3.
+
+**Deployments (all Sourcify exact_match, creation + runtime):**
+`SentinelReactiveV3` #4 `0xcE8615E0b19Ce81793aE34E6d7B8C33C440d2AA3`
+(Lasna, Chainlink origin, funded 1.05 lREACT); `SentinelSwap` #4
+`0xfc25B4e4961e1c6588CC1Ac7BbbdeCC3E88BBf05`; `SentinelVaultV2` #4
+`0xBd5d3146D62d4c6A6360483908e0429A1E6f9d06` (position 0.0001 WETH);
+rehearsal trio #4R: `MockPriceOracle`
+`0xA9aCa38557E2ec428F1b398BfF8725D69a87f63a`, `SentinelReactiveV3`
+`0xC497213aBFCfa0Dee320121B9245D93D3d9952B8` (funded 1.10 lREACT),
+`SentinelSwap` `0x05111b776E3A20BB634424168207F5c5e606B4B5`,
+`SentinelVaultV2` `0x57298806AC7197f2e16715e0454BBe22ddC250d3`.
+
+**Live proof.** Main trio: 2 real Chainlink emissions ingested
+($1,770.91 → $1,775.53614611), anchor re-anchored to the wei, HOLD
+(warm-up), react txs `0xd5262af6…` / `0xd590c8d6…`. Rehearsal trio:
+27 pushes → TRIM/EXIT/TRIM/EXIT callbacks (callback txs
+`0x2ec7cb8b…`, `0x4a27b310…`, `0x3d9c60e5…`, `0x2f6c3371…`), vault
+mUSDC 0.0343135 = the exact sum of the four fills, `protectionCount
+= 4`, position 0, closed. One deviation from the offline mirror is
+recorded in TRIO4.md §5 (a TRIM on the recovery's first step, inside
+the teacher's anchor-TRIM band).

@@ -1164,7 +1164,458 @@ def main_v2():
     return 0
 
 
+
+
+# ===========================================================================
+# V3 — the V-recovery blind-window fix (trio #4 repair release, 2026-11-19).
+#
+# Everything below is ADDITIVE: no v1/v2 function above is modified, and
+# the v1/v2 entry points still reproduce their shipped weights. Run v3
+# with:  python3 tools/train.py v3
+#
+# THE FLAW (measured 2026-11-19, test/SentinelAdversarial.t.sol case (e)
+# + offline mirror): after a sharp V-recovery re-peaks the anchor at a
+# new high, a fresh decline at -3%/step is voted HOLD by the v2 MODEL
+# for 7 steps (~-19% from the peak) and only engages at step 8, while
+# teacher v2 labels the same windows TRIM from step 1 (window drawdown
+# >= 3%) and EXIT at step 7 (anchorDD >= 18% + negative momentum). The
+# teacher is right and the model is wrong: this is a pure fit gap. The
+# region is missing from v2's training mix — no scenario makes a new
+# high and then declines immediately, so the model's windows mixing a
+# rebound leg (positive window momentum) with a fresh decline (growing
+# window + anchor drawdown) were never fitted, and it learned to let
+# window momentum veto the drawdown features there.
+#
+# THE FIX IS DATA, NOT A NEW TEACHER: teacher v2 is kept byte-identical
+# (so held-out comparisons against v2 stay like-for-like), and two
+# scenario families are added:
+#   peak_decline_flat — calm base, sharp rebound to a new high, then a
+#       sustained decline at -1%..-6%/step (kind 'ladder': the ladder
+#       labels the rebound HOLD — drawdown ~0 — and engages on the
+#       decline from its first step).
+#   peak_decline_v — plunge, V-recovery that OVERSHOOTS the pre-plunge
+#       high (anchor re-peaks), then the same decline menu (kind
+#       'vshape': the recovery clause holds the rebound at HOLD while
+#       steps rise; once steps fall at >2%/step the ladder engages).
+# Plus the exact adversarial-test path as deterministic anchors.
+#
+# ACCEPTANCE (acceptance_v3) = acceptance_v2 (all canonical v2 checks)
+# PLUS the recovery gate: on the deterministic recovery path, the first
+# TRIM-or-better vote after the new high must land within 3 decline
+# steps (v2: step 8). The full gate set (held-out vs v2, EXIT recall,
+# real-episode backtests, Foundry adversarial suite) is evaluated by
+# the caller / tools/backtest_v3.py; this section reports its numbers.
+# ===========================================================================
+
+HIDDEN_V3 = 12
+SEED_V3 = 20261119
+WEIGHTS_V3_SOL = ROOT / "src" / "model" / "SentinelWeightsV3.sol"
+VECTORS_V3_JSON = ROOT / "tools" / "vectors_v3.json"
+
+_DECLINE_RATES = (-0.010, -0.015, -0.020, -0.030, -0.045, -0.060)
+
+
+def _decline_rets(rng, n):
+    rate = float(_DECLINE_RATES[int(rng.integers(0, len(_DECLINE_RATES)))])
+    vol = rng.uniform(0.001, 0.005)
+    return list(rng.normal(rate, vol, n))
+
+
+def _gen_peak_decline_flat(rng):
+    """Calm base -> sharp rebound to a new high -> sustained decline."""
+    base = list(rng.normal(0.0003, 0.003, int(rng.integers(6, 15))))
+    k = int(rng.integers(2, 6))
+    rebound = list(rng.uniform(0.04, 0.12, k))
+    decline = _decline_rets(rng, int(rng.integers(12, 36)))
+    return _walk(rng, base + rebound + decline), "ladder"
+
+
+def _gen_peak_decline_v(rng):
+    """Plunge -> V-recovery overshooting the old high -> sustained
+    decline. The rebound leg is sized off the realised trough so the
+    series always ends the leg above its start (a true new high)."""
+    pre = list(rng.normal(0.0005, 0.003, int(rng.integers(4, 10))))
+    plunge = list(rng.uniform(-0.12, -0.05, int(rng.integers(3, 8))))
+    probe = _walk(rng, pre + plunge)
+    trough = probe[-1]
+    start_peak = max(probe)
+    k = int(rng.integers(3, 7))
+    target = start_peak * rng.uniform(1.00, 1.06)
+    step = (target / trough) ** (1.0 / k) - 1.0
+    rebound = [step * rng.uniform(0.85, 1.15) for _ in range(k)]
+    decline = _decline_rets(rng, int(rng.integers(12, 36)))
+    return _walk(rng, pre + plunge + rebound + decline), "vshape"
+
+
+SCENARIOS_V3 = SCENARIOS_V2 + ["peak_decline_flat", "peak_decline_v"]
+
+
+def gen_series_v3(rng, scenario):
+    if scenario == "peak_decline_flat":
+        return _gen_peak_decline_flat(rng)
+    if scenario == "peak_decline_v":
+        return _gen_peak_decline_v(rng)
+    return gen_series_v2(rng, scenario)
+
+
+def series_samples_v3(rng, scenario):
+    prices, kind = gen_series_v3(rng, scenario)
+    trough_idx = int(np.argmin(prices)) if kind == "vshape" else -1
+    peaks = anchor_stream(prices)
+    out = []
+    for t in range(2, len(prices)):
+        window = prices[max(0, t - 8):t + 1]
+        feats = features7_from_window(window, peaks[t])
+        out.append((feats, label_window_v2(kind, trough_idx, t, feats)))
+    return out
+
+
+# The exact price path of test/SentinelAdversarial.t.sol case (e)
+# (1e8 units): calm prefix, -8% step, -12% step to the trough at index
+# 6, recovery 90 / 98 / 105 (new high at index 9), then -3%/step by the
+# integer recurrence p * 97 // 100 the Solidity test uses.
+def _recovery_path():
+    path = [10_000_000_000, 10_050_000_000, 9_980_000_000, 10_020_000_000,
+            10_010_000_000, 9_200_000_000, 8_100_000_000, 9_000_000_000,
+            9_800_000_000, 10_500_000_000]
+    p = path[-1]
+    for _ in range(10):
+        p = p * 97 // 100
+        path.append(p)
+    return path
+
+
+RECOVERY_PATH = _recovery_path()
+RECOVERY_PEAK_IDX = 9          # index of the 105.00 new high
+RECOVERY_TROUGH_IDX = 6        # index of the 81.00 trough
+
+
+def recovery_first_action_step(predict, path=RECOVERY_PATH,
+                               peak_idx=RECOVERY_PEAK_IDX):
+    """First decline step (1-based, counting prices after the peak) at
+    which `predict(feats) -> action` votes TRIM or EXIT; None if never
+    within the path. predict takes the 7 integer features."""
+    peaks = anchor_stream(path)
+    for t in range(peak_idx + 1, len(path)):
+        window = path[max(0, t - 8):t + 1]
+        feats = features7_from_window(window, peaks[t])
+        if predict(feats) >= TRIM:
+            return t - peak_idx
+    return None
+
+
+def build_dataset_v3(rng, series_per_scenario=90):
+    """V2's construction and split rule over the v2 families plus the
+    two peak-decline families, with v2's anchors plus the deterministic
+    recovery path (teacher-v2 labels, kind 'vshape')."""
+    train, heldout = [], []
+    for scenario in SCENARIOS_V3:
+        s_train, s_held = [], []
+        for i in range(series_per_scenario):
+            samples = series_samples_v3(rng, scenario)
+            (s_held if i % 5 == 4 else s_train).extend(samples)
+        train.extend(s_train)
+        heldout.extend(s_held)
+    anchors = []
+    for name, (feats, action) in PINNED_V2_VECTORS.items():
+        anchors.append((list(feats), action))
+        for _ in range(24):
+            jit = [int(round(v * rng.uniform(0.9, 1.1))) if v != 0
+                   else int(rng.integers(-500, 501)) for v in feats]
+            anchors.append((jit, action))
+    for path, kind in ((CALM_PATH, "ladder"), (CRASH_PATH, "ladder"),
+                       (SAWTOOTH_MILD_PATH, "flat"),
+                       (SAWTOOTH_VIOLENT_PATH, "flat")):
+        peaks = anchor_stream(path)
+        for t in range(2, len(path)):
+            window = path[max(0, t - 8):t + 1]
+            feats = features7_from_window(window, peaks[t])
+            anchors.append((feats, label_window_v2(kind, -1, t, feats)))
+    peaks = anchor_stream(RECOVERY_PATH)
+    for t in range(2, len(RECOVERY_PATH)):
+        window = RECOVERY_PATH[max(0, t - 8):t + 1]
+        feats = features7_from_window(window, peaks[t])
+        anchors.append((feats, label_window_v2(
+            "vshape", RECOVERY_TROUGH_IDX, t, feats)))
+    # Deterministic variants of the recovery shape (attempt 2): peak
+    # level and decline rate swept, recovery leg geometric over 3 steps
+    # from the same 81.00 trough. Teacher-labelled like the canonical
+    # path — these pin the gate region with variation, not one point.
+    for peak_price in (10_300_000_000, 10_500_000_000, 10_800_000_000):
+        step = (peak_price / 8_100_000_000) ** (1.0 / 3.0)
+        leg = []
+        cur = 8_100_000_000.0
+        for _ in range(3):
+            cur *= step
+            leg.append(int(round(cur)))
+        leg[-1] = peak_price
+        for keep in (98, 97, 96):
+            path = [10_000_000_000, 10_050_000_000, 9_980_000_000,
+                    10_020_000_000, 10_010_000_000, 9_200_000_000,
+                    8_100_000_000] + leg
+            p_ = peak_price
+            for _ in range(10):
+                p_ = p_ * keep // 100
+                path.append(p_)
+            peaks_v = anchor_stream(path)
+            for t in range(2, len(path)):
+                window = path[max(0, t - 8):t + 1]
+                feats = features7_from_window(window, peaks_v[t])
+                anchors.append((feats, label_window_v2(
+                    "vshape", RECOVERY_TROUGH_IDX, t, feats)))
+    train.extend(anchors * 3)
+    rng.shuffle(train)
+    rng.shuffle(heldout)
+    return train, heldout
+
+
+def train_float_v3(X, Y, cw, epochs, lr0, lr1, wd, rng, hidden,
+                   params=None, ste=False):
+    """train_float_v2 with a configurable hidden width."""
+    N = X.shape[0]
+    if params is None:
+        W1 = rng.normal(0, 0.7, (hidden, 7)); b1 = np.zeros(hidden)
+        W2 = rng.normal(0, 0.7, (3, hidden)); b2 = np.zeros(3)
+    else:
+        W1, b1, W2, b2 = [p.copy() for p in params]
+    Yoh = np.zeros((N, 3)); Yoh[np.arange(N), Y] = 1.0
+    sample_w = cw[Y]
+    state = {k: [np.zeros_like(p), np.zeros_like(p)]
+             for k, p in (("W1", W1), ("b1", b1), ("W2", W2), ("b2", b2))}
+    for ep in range(epochs):
+        lr = lr1 + 0.5 * (lr0 - lr1) * (1 + math.cos(math.pi * ep / epochs))
+        if ste:
+            W1e = np.round(W1 * 1000) / 1000; b1e = np.round(b1 * SCALE) / SCALE
+            W2e = np.round(W2 * 1000) / 1000; b2e = np.round(b2 * SCALE) / SCALE
+        else:
+            W1e, b1e, W2e, b2e = W1, b1, W2, b2
+        Z1, H, P = _mlp_forward(X, W1e, b1e, W2e, b2e)
+        dZ2 = (P - Yoh) * sample_w[:, None] / N
+        dW2 = dZ2.T @ H + wd * W2e
+        db2 = dZ2.sum(axis=0)
+        dH = dZ2 @ W2e
+        dZ1 = dH * (Z1 > 0)
+        dW1 = dZ1.T @ X + wd * W1e
+        db1 = dZ1.sum(axis=0)
+        for name, p, g in (("W1", W1, dW1), ("b1", b1, db1),
+                           ("W2", W2, dW2), ("b2", b2, db2)):
+            m, v = state[name]
+            m[:] = 0.9 * m + 0.1 * g
+            v[:] = 0.999 * v + 0.001 * g * g
+            mh = m / (1 - 0.9 ** (ep + 1)); vh = v / (1 - 0.999 ** (ep + 1))
+            p -= lr * mh / (np.sqrt(vh) + 1e-8)
+        if ep in (0, epochs // 2, epochs - 1):
+            pred = np.argmax(P, axis=1)
+            acc = float((pred == Y).mean())
+            print(f"    epoch {ep:5d}  train-acc {acc:.4f}  lr {lr:.5f}")
+    return W1, b1, W2, b2
+
+
+def acceptance_v3(w1i, b1i, w2i, b2i, verbose=True):
+    """acceptance_v2 (every canonical v2 behaviour, unchanged) plus the
+    recovery gate. Returns (ok, report)."""
+    ok, report = acceptance_v2(w1i, b1i, w2i, b2i, verbose=False)
+    step = recovery_first_action_step(
+        lambda f: forward_int_v2(f, w1i, b1i, w2i, b2i)[0])
+    good = step is not None and step <= 3
+    ok &= good
+    report.append(f"recovery gate-> first TRIM+ at decline step {step} "
+                  f"(want <= 3; v2 model: 8)")
+    if verbose:
+        for line in report:
+            print("   ", line)
+    return ok, report
+
+
+def write_weights_v3_sol(w1i, b1i, w2i, b2i, metrics):
+    header = f"""// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.29;
+
+/// @title SentinelWeightsV3 — quantized weights for the Sentinel MLP v3
+///        (7 -> {len(b1i)} -> 3), shipped in SentinelReactiveV3 (trio #4).
+/// @notice TRAINED 2026-11-19 by tools/train.py v3 path (seed {SEED_V3};
+///         {metrics['series']} series across calm / uptrend / chop /
+///         grind-down / crash / V-recovery / slow-grind / staircase /
+///         bleed-with-recoveries / sawtooth / peak-decline-flat /
+///         peak-decline-v, labelled by teacher v2 — UNCHANGED from v2:
+///         the v1 ladder plus anchor bands on feature 6 (anchorDrawdown
+///         from a leaky peak decaying x999/1000 per update): anchorDD
+///         >= 18% with negative window momentum -> EXIT, >= 10% -> TRIM,
+///         window drawdown >= 21% -> EXIT, >= 3% -> TRIM, recovering ->
+///         HOLD). V3 changes the DATA, not the teacher: the two
+///         peak-decline families (sharp rebound to a new high, then an
+///         immediate sustained decline) close the measured v2 fit gap
+///         in which the model voted HOLD for 7 steps of a -3%/step
+///         decline after a V-recovery while its own teacher said TRIM
+///         from step 1 (see TRIO4.md). Dataset: {metrics['train_n']}
+///         train / {metrics['held_n']} held-out windows. Float model
+///         accuracy: train {metrics['float_train']:.4f}, held-out
+///         {metrics['float_held']:.4f}. Quantized integer model (this
+///         file): train {metrics['int_train']:.4f}, held-out
+///         {metrics['int_held']:.4f}; on v2's own held-out set (same
+///         teacher, like-for-like): {metrics['int_held_v2set']:.4f}
+///         (v2 shipped: 0.9541). Do not hand-edit the tables —
+///         regenerate with `python3 tools/train.py v3`.
+/// @dev Quantization: weights are integers scaled by 1000; biases are in
+///      the activation scale (features/logits scaled by 1e6). Output
+///      layout: index 0 = HOLD, 1 = TRIM, 2 = EXIT.
+library SentinelWeightsV3 {{"""
+    H = len(b1i)
+    w1 = _fmt_table(w1i, 7, [f"h{i}" for i in range(H)])
+    b1 = "\n".join(
+        f"            int256({v}){'' if i == H - 1 else ','} // h{i}"
+        for i, v in enumerate(b1i))
+    w2 = _fmt_table(w2i, H, ["HOLD", "TRIM", "EXIT"])
+    b2 = ", ".join(f"int256({v})" for v in b2i)
+    body = f"""
+    /// @notice Layer 1 weights, row-major [hidden][feature], {H} * 7 = {len(w1i)} entries.
+    ///         Feature order: [lastReturn, meanReturn, volatility, drawdown, momentum, priceVsMean, anchorDrawdown].
+    function weights1() internal pure returns (int256[{len(w1i)}] memory w) {{
+        w = [
+{w1}
+        ];
+    }}
+
+    /// @notice Layer 1 biases (activation scale, 1e6 = 1.0).
+    function biases1() internal pure returns (int256[{H}] memory b) {{
+        b = [
+{b1}
+        ];
+    }}
+
+    /// @notice Layer 2 weights, row-major [action][hidden], 3 * {H} = {len(w2i)} entries.
+    function weights2() internal pure returns (int256[{len(w2i)}] memory w) {{
+        w = [
+{w2}
+        ];
+    }}
+
+    /// @notice Layer 2 biases (logit scale, 1e6 = 1.0).
+    function biases2() internal pure returns (int256[3] memory b) {{
+        b = [{b2}];
+    }}
+}}
+"""
+    WEIGHTS_V3_SOL.write_text(header + body)
+
+
+def main_v3(hidden=HIDDEN_V3, seed=SEED_V3, epochs=4000, init_v2=False):
+    verify_mirror_against_phase1()
+
+    rng = np.random.default_rng(seed)
+    train, heldout = build_dataset_v3(rng)
+    # V2's own held-out set, rebuilt deterministically (seed SEED_V2,
+    # v2 construction) for the like-for-like gate against 0.9541.
+    _, heldout_v2 = build_dataset_v2(np.random.default_rng(SEED_V2))
+    Xtr = np.array([f for f, _ in train], dtype=np.float64) / SCALE
+    Ytr = np.array([y for _, y in train])
+    Xhe = np.array([f for f, _ in heldout], dtype=np.float64) / SCALE
+    Yhe = np.array([y for _, y in heldout])
+    Ftr = np.array([f for f, _ in train], dtype=np.int64)
+    Fhe = np.array([f for f, _ in heldout], dtype=np.int64)
+    Fhe2 = np.array([f for f, _ in heldout_v2], dtype=np.int64)
+    Yhe2 = np.array([y for _, y in heldout_v2])
+    counts = np.bincount(Ytr, minlength=3)
+    print(f"[data v3] train {len(train)} windows {dict(zip(ACTION_NAMES, counts))}, "
+          f"held-out {len(heldout)}; v2 held-out set {len(heldout_v2)}")
+    cw = (len(Ytr) / (3.0 * np.maximum(counts, 1))).astype(np.float64)
+
+    print(f"[train v3] float phase (hidden={hidden}, init_v2={init_v2})")
+    if init_v2:
+        # Attempt 3: start from the SHIPPED v2 weights (dequantized)
+        # and fine-tune gently on the v3 mix. The v2 basin already
+        # satisfies every v2 gate; the fine-tune only has to learn the
+        # peak-decline region without unlearning the rest. Width must
+        # match v2's 12.
+        assert hidden == HIDDEN_V2, "init_v2 requires v2's hidden width"
+        w1i0, b1i0, w2i0, b2i0 = parse_weights_v2_sol(WEIGHTS_V2_SOL)
+        init = (np.array(w1i0, dtype=np.float64).reshape(HIDDEN_V2, 7) / 1000,
+                np.array(b1i0, dtype=np.float64) / SCALE,
+                np.array(w2i0, dtype=np.float64).reshape(3, HIDDEN_V2) / 1000,
+                np.array(b2i0, dtype=np.float64) / SCALE)
+        params = train_float_v3(Xtr, Ytr, cw, epochs=epochs, lr0=0.004,
+                                lr1=0.0005, wd=1e-4,
+                                rng=np.random.default_rng(seed + 1),
+                                hidden=hidden, params=init)
+    else:
+        params = train_float_v3(Xtr, Ytr, cw, epochs=epochs, lr0=0.01,
+                                lr1=0.001, wd=1e-4,
+                                rng=np.random.default_rng(seed + 1),
+                                hidden=hidden)
+    W1, b1, W2, b2 = params
+    _, _, P = _mlp_forward(Xtr, W1, b1, W2, b2)
+    float_train = float((np.argmax(P, axis=1) == Ytr).mean())
+    _, _, P = _mlp_forward(Xhe, W1, b1, W2, b2)
+    float_held = float((np.argmax(P, axis=1) == Yhe).mean())
+    print(f"[train v3] float accuracy: train {float_train:.4f} held-out {float_held:.4f}")
+
+    ok = False
+    for round_ in range(5):
+        w1i, b1i, w2i, b2i = quantize(W1, b1, W2, b2)
+        pred_tr, _, _ = forward_int_vec_v2(Ftr, w1i, b1i, w2i, b2i)
+        pred_he, _, _ = forward_int_vec_v2(Fhe, w1i, b1i, w2i, b2i)
+        pred_he2, _, _ = forward_int_vec_v2(Fhe2, w1i, b1i, w2i, b2i)
+        int_train = float((pred_tr == Ytr).mean())
+        int_held = float((pred_he == Yhe).mean())
+        int_held_v2set = float((pred_he2 == Yhe2).mean())
+        print(f"[quantize v3 round {round_}] integer accuracy: train "
+              f"{int_train:.4f} held-out {int_held:.4f} "
+              f"v2-set {int_held_v2set:.4f}")
+        ok, _ = acceptance_v3(w1i, b1i, w2i, b2i)
+        if ok:
+            break
+        print("[qat v3] acceptance failed — quantization-aware fine-tune round")
+        W1, b1, W2, b2 = train_float_v3(
+            Xtr, Ytr, cw, epochs=600, lr0=0.003, lr1=0.0005, wd=1e-4,
+            rng=np.random.default_rng(seed + 2 + round_), hidden=hidden,
+            params=(W1, b1, W2, b2), ste=True)
+    if not ok:
+        print("ERROR: v3 acceptance still failing after QAT rounds; "
+              "weights NOT written.", file=sys.stderr)
+        return 1
+    print("[acceptance v3] all canonical checks + recovery gate pass")
+
+    per_class = {}
+    for k in range(3):
+        mask = Yhe == k
+        per_class[ACTION_NAMES[k]] = float((pred_he[mask] == k).mean())
+    per_class_v2set = {}
+    for k in range(3):
+        mask = Yhe2 == k
+        per_class_v2set[ACTION_NAMES[k]] = float((pred_he2[mask] == k).mean())
+    print(f"[eval v3] held-out by class: {per_class}")
+    print(f"[eval v3] v2-set by class:   {per_class_v2set}")
+    print(f"[gate] held-out v3-set {int_held:.4f} | v2-set {int_held_v2set:.4f} "
+          f"(v2 shipped 0.9541) | EXIT recall v3-set "
+          f"{per_class['EXIT']:.4f} v2-set {per_class_v2set['EXIT']:.4f} "
+          f"(v2 shipped 0.9940)")
+    metrics = {
+        "series": 90 * len(SCENARIOS_V3),
+        "train_n": len(train), "held_n": len(heldout),
+        "float_train": float_train, "float_held": float_held,
+        "int_train": int_train, "int_held": int_held,
+        "int_held_v2set": int_held_v2set,
+        "int_held_by_class": per_class,
+        "int_held_by_class_v2set": per_class_v2set,
+        "hidden": hidden,
+    }
+    write_weights_v3_sol(w1i, b1i, w2i, b2i, metrics)
+    print(f"[codegen v3] wrote {WEIGHTS_V3_SOL}")
+
+    vectors = {"model": {}, "metrics": metrics}
+    for name, (feats, _) in PINNED_V2_VECTORS.items():
+        action, logits, hidden_acts = forward_int_v2(feats, w1i, b1i, w2i, b2i)
+        vectors["model"][name] = {"features": feats, "action": action,
+                                  "logits": logits, "hidden": hidden_acts}
+    VECTORS_V3_JSON.write_text(json.dumps(vectors, indent=2))
+    print(f"[codegen v3] wrote {VECTORS_V3_JSON}")
+    print(json.dumps(metrics, indent=2))
+    return 0
+
+
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "v2":
         sys.exit(main_v2())
+    if len(sys.argv) > 1 and sys.argv[1] == "v3":
+        sys.exit(main_v3())
     sys.exit(main())

@@ -396,3 +396,54 @@ updates − 2 warm-up).
 4. Demo A trio, the old reactive (0.3371809 lREACT) and all phase-1/A
    evidence are untouched; reactive #2 is an additional deployment, not
    a replacement.
+
+## Trio #4 — repair release (2026-11-19)
+
+Ordered after the 73-test adversarial pass documented two contract-level
+weaknesses and one model limitation. Full record: TRIO4.md.
+
+**Repairs shipped** in `src/SentinelReactiveV3.sol` (V2 sources
+untouched): (1) replay dedup — log-identity mapping
+(`keccak256(chainId, contract, txHash, logIndex)`), `duplicatesIgnored`
+counter; (2) TRIM suppression — 10 updates after a TRIM fire, bypass on
+EXIT conditions (anchorDD ≥ 18% + negative momentum), EXIT never
+suppressed, `TrimSuppressed` event. 20 new tests (12 V3 + 7 adversarial
+re-pins + 1 end-to-end) → **93/93**.
+
+**Model v3 DESCOPED.** Diagnosis: teacher labels the recovery path
+correctly (TRIM from step 1); the v2 model underfits it. Three retrains
+with fresh-peak decline families + recovery anchors: attempts 2–3 hit
+recovery step 1 but held-out fidelity fell to 93.6–94.2% vs the 95.41%
+gate (attempt 1: step 5, 95.05%). Per the work order's rule the model
+was not shipped; trio #4 runs v2 weights; the blind window stays a
+documented limitation (pinned by adversarial case (e) and re-measured
+live: HOLD ×7, EXIT at step 8). Failed v3 weight artifacts deleted;
+training code retained (`tools/train.py` v3 section,
+`tools/backtest_v3.py`).
+
+**Funding.** User sent 1 Sepolia ETH to the dev wallet; faucet round
+tx `0x87711812…` (0.02 ETH → ~2.1 lREACT); bridge tx `0x833539a2…`
+(0.01 ETH Sepolia → Base Sepolia via L1StandardBridge
+`0xfd0Bf71F…`, method confirmed from the official Base docs).
+
+**Deployments** (all Sourcify exact_match): reactive #4
+`0xcE8615E0…d2AA3` (Lasna, 1.05 lREACT), swap #4 `0xfc25B4e4…Bf05`,
+vault #4 `0xBd5d3146…9d06` (0.0001 WETH position); rehearsal trio #4R:
+oracle `0xA9aCa385…f63a`, reactive `0xC497213a…52B8` (1.10 lREACT),
+swap `0x05111b77…B4B5`, vault `0x57298806…50d3` (0.0002 WETH).
+Tooling note: this Foundry (1.9.0) needs `--broadcast` on `forge
+create`; two non-broadcast invocations deployed nothing (verified via
+unchanged nonce/balance) and were re-run correctly.
+
+**Live proof.** Rehearsal (`tools/rehearse_v3.sh`, 27 pushes): calm
+HOLDs; −2% bleed → TRIM (cb `0x2ec7cb8b…`), 7 `TrimSuppressed` events,
+EXIT (cb `0x4a27b310…`); re-arm; recovery TRIM at $83.70 (cb
+`0x3d9c60e5…` — deviation from the mirror's 14-push-bleed simulation,
+inside the teacher's anchor-TRIM band, recorded in TRIO4.md); −3%
+decline → EXIT at step 8 (cb `0x2f6c3371…`). Vault mUSDC 0.0343135 =
+exact sum of fills; protections 4; closed. Main trio: 2 real Chainlink
+emissions ($1,770.91 → $1,775.53614611; syncs `0xd8303e1d…`,
+`0x401ed273…`; reacts `0xd5262af6…`, `0xd590c8d6…`), anchor re-anchored
+to the wei, HOLD. Trio #3 ingested the same emissions (1.46745 lREACT
+after). Fuel after: R4 1.010342, R4R 0.1856625 lREACT; dev 0.2296481
+lREACT / 0.950149 Sepolia ETH / 0.0093168 Base Sepolia ETH.
