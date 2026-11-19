@@ -14,7 +14,7 @@ human watching charts at 3 a.m.
 | 🏛️ **DoraHacks build** | https://dorahacks.io/build/51122 |
 | 🎯 **Model accuracy** | **97.47%** on held-out series (shipped integer model; EXIT calls 100%) |
 | ⚡ **Firing loop** | **≈ 2 s** end-to-end (origin → reactive → callback), proven live on testnet |
-| 🧪 **Tests** | **66/66** Foundry tests pass, including exact-logit pins, a full-loop end-to-end suite, the real-asset vault suite, the Chainlink adapter suite and the model-v2 suite (bit-exact feature/logit parity against the training mirror) |
+| 🧪 **Tests** | **73/73** Foundry tests pass, including exact-logit pins, a full-loop end-to-end suite, the real-asset vault suite, the Chainlink adapter suite, the model-v2 suite (bit-exact feature/logit parity against the training mirror) and an adversarial suite (stale feed, whipsaw, replay, slow-grind and re-arm behaviour — see EVIDENCE.md) |
 | 🏦 **Vault** | **Real ERC20 position** — `SentinelVaultV2` holds WETH on Base Sepolia and de-risks into MockUSDC through `SentinelSwap` (live proof below) |
 | 📡 **Price feed** | **Three live trios** — Demo A on `MockPriceOracle` (deterministic firing proof); Demo B on the real Chainlink ETH/USD feed via `ChainlinkPriceAdapter`, reactive subscribed to WETH; trio #3 runs the anchor-aware **model v2** on the same Chainlink feed (live proof below) |
 | 🧠 **Inference** | **100% on-chain** — an MLP forward pass in Solidity fixed point, inside the reactive contract |
@@ -354,7 +354,7 @@ Requires [Foundry](https://getfoundry.sh) (solc 0.8.29). Dependencies
 
 ```bash
 forge build
-forge test        # 66 tests, 9 suites
+forge test        # 73 tests, 10 suites
 ```
 
 | Suite | Covers |
