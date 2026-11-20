@@ -10,7 +10,7 @@ human watching charts at 3 a.m.
 
 | | |
 |---|---|
-| 🎥 **Demo video** | https://www.youtube.com/watch?v=mcEdWm5whgE |
+| 🎥 **Demo video** | https://www.youtube.com/watch?v=zXZDM-lRKeY |
 | 🏛️ **DoraHacks build** | https://dorahacks.io/build/51122 |
 | 🎯 **Model accuracy** | **97.47%** on held-out series (shipped integer model; EXIT calls 100%) |
 | ⚡ **Firing loop** | **≈ 2 s** end-to-end (origin → reactive → callback), proven live on testnet |
