@@ -21,6 +21,44 @@ human watching charts at 3 a.m.
 | 📡 **Price feed** | **Four live trios** — Demo A on `MockPriceOracle` (deterministic firing proof); Demo B on the real Chainlink ETH/USD feed via `ChainlinkPriceAdapter`, reactive subscribed to WETH; trio #3 runs the anchor-aware **model v2** on the same Chainlink feed; trio #4 adds replay deduplication + TRIM suppression on the same feed, plus its own mock-origin rehearsal trio (see TRIO4.md) |
 | 🧠 **Inference** | **100% on-chain** — an MLP forward pass in Solidity fixed point, inside the reactive contract |
 
+## For agents
+
+Sentinel ships with an **MCP server** (in [`agent/`](agent/)) so an AI agent can
+inspect the live system and prepare a deposit into the guarded vault — the same
+live reads the Live Proof page shows in a browser, exposed as tools:
+
+| Tool | What it does |
+|---|---|
+| `sentinel_status` | Live trio #5 state, read at call time: brain fuel, updates ingested, last Chainlink price, anchor, last decision; vault position / safe balance / counts; desk reserves. |
+| `sentinel_events` | Recent decision / callback / protection events across both chains, newest first, with explorer links. |
+| `sentinel_prepare_deposit` | Unsigned **wrap → approve → deposit** transactions for a given sender and amount (wrap covers only the WETH shortfall; approve is skipped when allowance suffices) — the agent signs with its **own** wallet. |
+| `sentinel_verify` | The five contracts with Sourcify + explorer links. |
+
+Run it (Node.js ≥ 18, stdio transport):
+
+```bash
+cd agent && npm install && node server.mjs
+```
+
+```json
+{
+  "mcpServers": {
+    "sentinel": {
+      "command": "node",
+      "args": ["/absolute/path/to/sentinel-reactive/agent/server.mjs"]
+    }
+  }
+}
+```
+
+Machine-readable manifest: https://badutitem.github.io/sentinel-reactive/agent.json
+
+**Honest limits:** testnet only; deposits join **one shared position** (no
+per-user accounting); withdrawals are **owner-only**, so deposited test WETH
+cannot be withdrawn by the depositor; the safe asset is a mock token; and the
+server **holds no keys and never sends transactions** — it only reads chains
+and prepares calldata. Details: [`agent/README.md`](agent/README.md).
+
 ## Why
 
 Stop-losses and liquidation guards today are either dumb thresholds ("sell
