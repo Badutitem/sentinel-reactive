@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sentinel — Demo app</title>
-<meta name="description" content="Connect a wallet on Base Sepolia testnet and stand inside the Sentinel demo: your own balances and the live guarded position, read from the contracts in your browser.">
+<meta name="description" content="Connect a wallet on Base Sepolia testnet and stand inside the Sentinel demo: your own balances, a real test deposit into the guarded vault, and the live position — read from the contracts in your browser.">
 <style>
   :root{
     --bg:#0b0e13; --card:#131822; --card2:#0f141d; --line:#232c3d;
@@ -38,10 +38,20 @@
   .unavail{color:var(--faint);font-weight:400;font-style:italic}
   .note{background:var(--card2);border:1px dashed var(--line);border-radius:10px;padding:12px 16px;color:var(--dim);font-size:14px}
   .note b{color:var(--txt)}
+  .warn{background:#1d1807;border:1px solid var(--amber);border-radius:10px;padding:12px 16px;color:var(--dim);font-size:14.5px;margin-bottom:14px}
+  .warn b{color:var(--amber)}
+  .warn ul{margin:6px 0 2px;padding-left:20px}
+  .warn li{margin:3px 0}
   button.act{background:var(--green);color:#06130c;border:0;border-radius:8px;padding:9px 16px;font-size:14px;font-weight:700;cursor:pointer}
   button.act.alt{background:var(--card);color:var(--txt);border:1px solid var(--line)}
   button.act:disabled{opacity:.45;cursor:not-allowed}
   .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:12px}
+  input.amt{background:var(--card2);border:1px solid var(--line);border-radius:8px;color:var(--txt);
+    padding:9px 12px;font-size:15px;width:170px;font-family:var(--mono)}
+  input.amt:focus{outline:none;border-color:var(--green)}
+  .stepstate{font-weight:400;color:var(--dim);font-size:13.5px}
+  .stepstate .ok{color:var(--green);font-weight:700}
+  .stepstate .bad{color:var(--red);font-weight:700}
   .log{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:12px 16px;
     font-size:13.5px;color:var(--dim);min-height:44px;white-space:pre-wrap;word-break:break-word}
   footer{border-top:1px solid var(--line);margin-top:36px;padding-top:18px;color:var(--dim);font-size:14px;display:flex;gap:22px;flex-wrap:wrap}
@@ -55,9 +65,9 @@
 <header>
   <h1><span class="shield">🛡</span> Sentinel — Demo app</h1>
   <div class="sub">This is the demo you can <b>step into</b>: connect a wallet on the
-  <b>Base Sepolia testnet</b> and this page reads <b>your own balances</b> and the
-  <b>live guarded position</b> straight from the contracts — the same vault the Sentinel brain
-  watches on the real Chainlink ETH/USD feed.</div>
+  <b>Base Sepolia testnet</b>, wrap a little test ETH and <b>add it to the guarded position</b> —
+  this page reads <b>your own balances</b> and the <b>live position</b> straight from the contracts,
+  the same vault the Sentinel brain watches on the real Chainlink ETH/USD feed.</div>
   <div class="bar">
     <span class="pill">Network: <b>Base Sepolia · 84532 · testnet</b></span>
     <span class="pill">Want the full receipts? <a href="index.html"><b>← Live Proof page</b></a></span>
@@ -66,11 +76,12 @@
 
 <div class="note">
   <b>Where this demo stands, honestly.</b> The app is being opened up one step at a time, and each
-  step ships only after it is proven. <b>Step 1 — wallet connect — is live on this page.</b>
-  The next step would have been claiming test mock USDC, but that token's mint is owner-only:
-  there is <b>no public faucet</b>, so that step is blocked by the contract itself and the build
-  stops here for now. Deposits in this demo run through the live trio's own guarded position,
-  shown below — that is the working example. Testnet only: nothing here is real money.
+  step ships only after it is proven. <b>Step 1 — wallet connect — is live.</b>
+  <b>Step 2 — deposit — is live too</b>: below, you can wrap test ETH into WETH and deposit it into
+  the guarded vault. Read the three plain facts in the yellow box first — the position is shared
+  and withdrawals are owner-only in this demo. The one step that stays closed is claiming test
+  mock USDC: that token's mint is owner-only, there is <b>no public faucet</b>, so it is blocked
+  by the contract itself. Testnet only: nothing here is real money.
 </div>
 
 <h2>Step 1 — connect your wallet</h2>
@@ -94,16 +105,51 @@ and connecting asks for no signature and moves nothing.</p>
     <span style="color:var(--dim);font-size:13.5px">No test ETH yet? Get some free from a public
     Base Sepolia faucet (for example
     <a href="https://www.alchemy.com/faucets/base-sepolia" target="_blank" rel="noopener">Alchemy's</a>)
-    — you only need it for later steps, not to connect.</span>
+    — you only need it for step 2, not to connect.</span>
   </div>
 </div>
 
-<h2 style="margin-top:22px">Connection log</h2>
+<h2>Step 2 — add test ETH to the guarded position</h2>
+<p class="h2sub">One button runs the whole flow: wrap ETH into WETH (only the part you are missing),
+approve the vault for exactly that amount, then deposit. Each step is a real testnet transaction,
+signed in your wallet, and the position below updates after every confirmed step.</p>
+
+<div class="warn">
+  <b>Read this before you deposit — three plain facts:</b>
+  <ul>
+    <li><b>Shared position.</b> This demo vault keeps <b>one shared position for everyone</b>.
+    There is no separate balance in your name, and this page cannot show "your share".</li>
+    <li><b>You cannot withdraw.</b> In this demo, withdrawals are <b>owner-only</b> — only the
+    demo operator can take WETH back out of the vault. Test WETH you deposit stays in the
+    shared position.</li>
+    <li><b>Testnet only, worth nothing.</b> The ETH and WETH here are Base Sepolia test money.
+    They are worth nothing. This page only works on the testnet — never send real funds.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h3>Deposit into SentinelVaultV4</h3>
+  <p class="role">Destination contract · Base Sepolia · your WETH joins the shared guarded position</p>
+  <div class="addr">0xb13BF7Ff153e7f6304735EC4199B006Fd4857Ac9</div>
+  <div class="row" style="margin-top:14px">
+    <label for="d-amount" style="color:var(--dim);font-size:14px">Amount (test ETH)</label>
+    <input class="amt" id="d-amount" type="text" inputmode="decimal" placeholder="0.0001" value="0.0001">
+    <button class="act" id="btn-deposit" disabled>Wrap &amp; deposit</button>
+    <span style="color:var(--dim);font-size:13.5px">Keep it tiny — 0.0001 is plenty for the demo.</span>
+  </div>
+  <table class="kv" style="margin-top:10px">
+    <tr><td class="k">1 · Wrap ETH → WETH</td><td class="v"><span class="stepstate" id="d-step-wrap">waiting</span></td></tr>
+    <tr><td class="k">2 · Approve the vault (exact amount)</td><td class="v"><span class="stepstate" id="d-step-approve">waiting</span></td></tr>
+    <tr><td class="k">3 · Deposit into the vault</td><td class="v"><span class="stepstate" id="d-step-deposit">waiting</span></td></tr>
+  </table>
+</div>
+
+<h2 style="margin-top:22px">Activity log</h2>
 <div class="log" id="log">Nothing yet. Connect a wallet to start.</div>
 
 <h2>The guarded position — live</h2>
-<p class="h2sub">The live trio #5 position, read from the vault right now — the working example of
-what Sentinel guards. The brain that guards it lives on the Reactive Lasna testnet; its live state
+<p class="h2sub">The live trio #5 position, read from the vault right now — the shared position your
+deposit joins. The brain that guards it lives on the Reactive Lasna testnet; its live state
 and the full firing proof are on the <a href="index.html">Live Proof page</a>.</p>
 
 <div class="card">
@@ -125,7 +171,7 @@ and the full firing proof are on the <a href="index.html">Live Proof page</a>.</
   <a href="https://dorahacks.io/build/51122" target="_blank" rel="noopener">DoraHacks build #51122</a>
   <a href="https://github.com/Badutitem/sentinel-reactive" target="_blank" rel="noopener">GitHub repo</a>
   <a href="https://www.youtube.com/watch?v=zXZDM-lRKeY" target="_blank" rel="noopener">Demo video (1:41)</a>
-  <span>Demo shell, step 1: wallet connect. Testnet only — nothing here is real money.</span>
+  <span>Demo shell: wallet connect + deposit into the shared position. Testnet only — nothing here is real money.</span>
 </footer>
 
 </div>
@@ -142,6 +188,10 @@ const VAULT = "0xb13BF7Ff153e7f6304735EC4199B006Fd4857Ac9"; // SentinelVaultV4 (
 
 const SEL = {
   balanceOf:"0x70a08231",
+  allowance:"0xdd62ed3e",
+  approve:"0x095ea7b3",
+  wethDeposit:"0xd0e30db0",
+  vaultDeposit:"0xb6b55f25",
   positionSize:"0x84f523ad", safeBalance:"0x88780b8e", closed:"0x597e1fb5",
   protectionCount:"0x9b02c402", reriskCount:"0x8beaf925"
 };
@@ -176,6 +226,7 @@ const ethBalance = addr => rpc("eth_getBalance", [addr, "latest"]);
 /* ---------- helpers ---------- */
 const U = hex => BigInt(hex);
 const argAddr = a => "0".repeat(24) + a.slice(2).toLowerCase();
+const argUint = v => v.toString(16).padStart(64, "0");
 const fmtTok = (wei, sym, maxDp=6) => {
   const v = Number(wei) / 1e18;
   return v.toLocaleString("en-US",{minimumFractionDigits:0, maximumFractionDigits:maxDp}) + (sym ? " "+sym : "");
@@ -187,6 +238,15 @@ function log(msg){
   el.textContent += (el.textContent ? "\n" : "") + msg;
 }
 $("log").dataset.empty = "1";
+function parseAmount(str){
+  str = (str || "").trim();
+  if(str === "" || str === "." || !/^\d*(\.\d*)?$/.test(str)) return null;
+  const parts = str.split(".");
+  const ip = parts[0] || "0", fp = parts[1] || "";
+  if(fp.length > 18) return null;
+  const wei = BigInt(ip) * (10n ** 18n) + BigInt((fp + "0".repeat(18)).slice(0, 18));
+  return wei > 0n ? wei : null;
+}
 
 /* ---------- step 1: wallet connect ---------- */
 let account = null;
@@ -225,6 +285,7 @@ async function connect(){
     $("w-status").textContent = "connected · Base Sepolia";
     $("w-addr").textContent = account;
     $("btn-refresh-bal").disabled = false;
+    $("btn-deposit").disabled = false;
     log("Wallet connected: " + account + " (" + chainNote + ").");
     await refreshBalances();
   }catch(e){
@@ -250,6 +311,99 @@ async function refreshBalances(){
   }
 }
 
+/* ---------- step 2: wrap → approve → deposit ---------- */
+function setStep(id, html){ $(id).innerHTML = html; }
+const txLink = h => ' · <a href="' + BASESCAN + '/tx/' + h + '" target="_blank" rel="noopener">tx ↗</a>';
+function stepWaiting(id, label){ setStep(id, '<span class="spin"></span> ' + label + "…"); }
+function stepDone(id, hash){ setStep(id, '<span class="ok">done</span>' + (hash ? txLink(hash) : "")); }
+function stepSkip(id, why){ setStep(id, "not needed — " + why); }
+function stepFail(id, why){ setStep(id, '<span class="bad">failed</span> — ' + why); }
+
+async function sendTx(to, data, valueWei){
+  return await window.ethereum.request({method:"eth_sendTransaction",
+    params:[{from: account, to: to, data: data, value: "0x" + valueWei.toString(16)}]});
+}
+async function waitReceipt(hash){
+  for(let i = 0; i < 90; i++){
+    let r = null;
+    try{ r = await rpc("eth_getTransactionReceipt", [hash]); }catch(e){ /* retry */ }
+    if(r){
+      if(r.status !== "0x1") throw new Error("the transaction failed on-chain");
+      return r;
+    }
+    await new Promise(res => setTimeout(res, 2000));
+  }
+  throw new Error("no receipt seen in time — check the tx link on BaseScan");
+}
+
+let depositing = false;
+async function runDeposit(){
+  if(depositing) return;
+  if(!account){ log("Connect your wallet first (step 1)."); return; }
+  const amt = parseAmount($("d-amount").value);
+  if(amt === null){
+    log("Enter an amount first — a small one, like 0.0001 test ETH.");
+    return;
+  }
+  depositing = true;
+  $("btn-deposit").disabled = true;
+  setStep("d-step-wrap", "waiting"); setStep("d-step-approve", "waiting"); setStep("d-step-deposit", "waiting");
+  let stage = "d-step-wrap";
+  try{
+    await ensureChain();
+    log("Deposit started: " + fmtTok(amt, "ETH") + " into the shared guarded position.");
+
+    /* 1 · wrap only the shortfall */
+    const wethBal = U(await call(WETH, SEL.balanceOf + argAddr(account)));
+    if(wethBal < amt){
+      const short = amt - wethBal;
+      const ethBal = U(await ethBalance(account));
+      if(ethBal < short) throw new Error("not enough test ETH — you hold " + fmtTok(ethBal, "ETH") + " and need " + fmtTok(short, "ETH") + " more to wrap (plus a little for gas)");
+      stepWaiting("d-step-wrap", "sign the wrap in your wallet");
+      const h = await sendTx(WETH, SEL.wethDeposit, short);
+      stepWaiting("d-step-wrap", "confirming"); setStep("d-step-wrap", '<span class="spin"></span> confirming…' + txLink(h));
+      await waitReceipt(h);
+      stepDone("d-step-wrap", h);
+      log("Wrapped " + fmtTok(short, "ETH") + " into WETH.");
+      await refreshBalances();
+    } else {
+      stepSkip("d-step-wrap", "you already hold enough WETH");
+    }
+
+    /* 2 · approve the exact amount */
+    stage = "d-step-approve";
+    const allow = U(await call(WETH, SEL.allowance + argAddr(account) + argAddr(VAULT)));
+    if(allow < amt){
+      stepWaiting("d-step-approve", "sign the approval in your wallet");
+      const h = await sendTx(WETH, SEL.approve + argAddr(VAULT) + argUint(amt), 0n);
+      setStep("d-step-approve", '<span class="spin"></span> confirming…' + txLink(h));
+      await waitReceipt(h);
+      stepDone("d-step-approve", h);
+      log("Vault approved for exactly " + fmtTok(amt, "WETH") + ".");
+    } else {
+      stepSkip("d-step-approve", "the vault already has enough allowance");
+    }
+
+    /* 3 · deposit */
+    stage = "d-step-deposit";
+    stepWaiting("d-step-deposit", "sign the deposit in your wallet");
+    const h = await sendTx(VAULT, SEL.vaultDeposit + argUint(amt), 0n);
+    setStep("d-step-deposit", '<span class="spin"></span> confirming…' + txLink(h));
+    await waitReceipt(h);
+    stepDone("d-step-deposit", h);
+    log("Deposited " + fmtTok(amt, "WETH") + " into the shared guarded position. It cannot be withdrawn by you — withdrawals are owner-only in this demo (see the yellow box).");
+    await refreshBalances();
+    await refreshVault();
+  }catch(e){
+    const msg = (e && e.code === 4001) ? "you rejected the signature in your wallet" : (e.message || String(e));
+    stepFail(stage, msg);
+    log("Deposit stopped: " + msg + ".");
+  }finally{
+    depositing = false;
+    $("btn-deposit").disabled = !account;
+  }
+}
+
 /* ---------- guarded position (live, no wallet needed) ---------- */
 function setField(name, html){
   document.querySelectorAll('[data-f="'+name+'"]').forEach(el => el.innerHTML = html);
@@ -269,6 +423,7 @@ async function refreshVault(){
 /* ---------- wiring ---------- */
 $("btn-connect").addEventListener("click", connect);
 $("btn-refresh-bal").addEventListener("click", refreshBalances);
+$("btn-deposit").addEventListener("click", runDeposit);
 $("btn-refresh-vault").addEventListener("click", refreshVault);
 if(hasWallet() && window.ethereum.on){
   window.ethereum.on("accountsChanged", accs => {
