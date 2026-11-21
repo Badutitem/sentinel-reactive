@@ -12,9 +12,10 @@ human watching charts at 3 a.m.
 |---|---|
 | 🎥 **Demo video** | https://www.youtube.com/watch?v=zXZDM-lRKeY |
 | 🏛️ **DoraHacks build** | https://dorahacks.io/build/51122 |
+| 🔎 **Live proof** | https://badutitem.github.io/sentinel-reactive/ — every number on this page, read live from the contracts |
 | 🎯 **Model accuracy** | **97.47%** on held-out series (shipped integer model; EXIT calls 100%) |
 | ⚡ **Firing loop** | **≈ 2 s** end-to-end (origin → reactive → callback), proven live on testnet |
-| 🧪 **Tests** | **93/93** Foundry tests pass, including exact-logit pins, a full-loop end-to-end suite, the real-asset vault suite, the Chainlink adapter suite, the model-v2 suite (bit-exact feature/logit parity against the training mirror), an adversarial suite (stale feed, whipsaw, replay, slow-grind and re-arm behaviour — see EVIDENCE.md) and the trio #4 repair suites (replay deduplication, TRIM suppression, re-pinned adversarial cases — see TRIO4.md) |
+| 🧪 **Tests** | **144/144** Foundry tests pass, including exact-logit pins, a full-loop end-to-end suite, the real-asset vault suite, the Chainlink adapter suite, the model-v2 suite (bit-exact feature/logit parity against the training mirror), an adversarial suite (stale feed, whipsaw, replay, slow-grind and re-arm behaviour — see EVIDENCE.md), the trio #4 repair suites (replay deduplication, TRIM suppression, re-pinned adversarial cases — see TRIO4.md) and the trio #5 re-risk suites (two-tranche buy-back — see TRIO5.md) |
 | 🏦 **Vault** | **Real ERC20 position** — `SentinelVaultV2` holds WETH on Base Sepolia and de-risks into MockUSDC through `SentinelSwap` (live proof below) |
 | 📡 **Price feed** | **Four live trios** — Demo A on `MockPriceOracle` (deterministic firing proof); Demo B on the real Chainlink ETH/USD feed via `ChainlinkPriceAdapter`, reactive subscribed to WETH; trio #3 runs the anchor-aware **model v2** on the same Chainlink feed; trio #4 adds replay deduplication + TRIM suppression on the same feed, plus its own mock-origin rehearsal trio (see TRIO4.md) |
 | 🧠 **Inference** | **100% on-chain** — an MLP forward pass in Solidity fixed point, inside the reactive contract |
