@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sentinel — Live Proof</title>
+<meta name="description" content="Live on-chain proof for Sentinel, an AI-guarded stop-loss. Every number on this page is read from the contracts in your browser, as you open it.">
+<style>
+  :root{
+    --bg:#0b0e13; --card:#131822; --card2:#0f141d; --line:#232c3d;
+    --txt:#e8edf5; --dim:#9aa7ba; --faint:#64718a;
+    --green:#3fb97f; --amber:#e0a83c; --red:#e05c5c; --blue:#5ea8e8; --violet:#a78bfa;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.55 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  a{color:var(--blue);text-decoration:none} a:hover{text-decoration:underline}
+  .wrap{max-width:1020px;margin:0 auto;padding:28px 18px 60px}
+  header{border-bottom:1px solid var(--line);padding-bottom:20px;margin-bottom:24px}
+  h1{font-size:30px;margin:0 0 6px;letter-spacing:.2px}
+  h1 .shield{color:var(--green)}
+  .sub{color:var(--dim);font-size:17px;max-width:720px}
+  .sub b{color:var(--txt)}
+  .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:16px}
+  .pill{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:5px 12px;font-size:13px;color:var(--dim)}
+  .pill b{color:var(--txt);font-weight:600}
+  button#refresh{background:var(--green);color:#06130c;border:0;border-radius:8px;padding:8px 16px;font-size:14px;font-weight:700;cursor:pointer}
+  button#refresh:disabled{opacity:.55;cursor:wait}
+  h2{font-size:20px;margin:30px 0 6px}
+  .h2sub{color:var(--dim);font-size:14px;margin:0 0 14px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media (max-width:760px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .card h3{margin:0 0 2px;font-size:16px}
+  .card .role{color:var(--faint);font-size:13px;margin:0 0 12px}
+  .addr{font-family:var(--mono);font-size:12px;color:var(--dim);word-break:break-all}
+  table.kv{width:100%;border-collapse:collapse;font-size:14.5px}
+  table.kv td{padding:5px 0;border-top:1px solid var(--card2);vertical-align:top}
+  table.kv tr:first-child td{border-top:0}
+  table.kv td.k{color:var(--dim);width:52%}
+  table.kv td.v{text-align:right;font-weight:600}
+  .act{font-weight:800;letter-spacing:.4px}
+  .HOLD{color:var(--dim)} .TRIM{color:var(--amber)} .EXIT{color:var(--red)}
+  .RERISK,.RERISK_FINAL{color:var(--green)}
+  .unavail{color:var(--faint);font-weight:400;font-style:italic}
+  .feed{display:flex;flex-direction:column;gap:8px}
+  .ev{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--faint);border-radius:8px;padding:10px 14px;font-size:14px}
+  .ev .t{color:var(--faint);font-size:12.5px}
+  .ev.HOLD{border-left-color:var(--faint)} .ev.TRIM{border-left-color:var(--amber)}
+  .ev.EXIT{border-left-color:var(--red)} .ev.RERISK,.ev.RERISK_FINAL{border-left-color:var(--green)}
+  .ev.PRICE{border-left-color:var(--blue)} .ev.INFO{border-left-color:var(--violet)}
+  .ev .what{font-weight:700}
+  .ev a{font-family:var(--mono);font-size:12px}
+  .tl{position:relative;margin:6px 0 0 6px;padding-left:22px;border-left:2px solid var(--line)}
+  .tl .step{position:relative;padding:0 0 16px}
+  .tl .step::before{content:"";position:absolute;left:-29px;top:5px;width:12px;height:12px;border-radius:50%;background:var(--faint);border:2px solid var(--bg)}
+  .tl .step.TRIM::before{background:var(--amber)} .tl .step.EXIT::before{background:var(--red)}
+  .tl .step.RERISK::before,.tl .step.RERISK_FINAL::before{background:var(--green)}
+  .tl .step p{margin:2px 0;color:var(--dim);font-size:14px}
+  .tl .step .links{font-family:var(--mono);font-size:12px}
+  .note{background:var(--card2);border:1px dashed var(--line);border-radius:10px;padding:12px 16px;color:var(--dim);font-size:14px}
+  .note b{color:var(--txt)}
+  .verify{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+  @media (max-width:760px){.verify{grid-template-columns:1fr}}
+  .vcard{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:13.5px}
+  .vcard h4{margin:0 0 4px;font-size:14px}
+  .vcard .addr{margin-bottom:8px}
+  .vcard a{display:inline-block;margin-right:12px}
+  footer{border-top:1px solid var(--line);margin-top:36px;padding-top:18px;color:var(--dim);font-size:14px;display:flex;gap:22px;flex-wrap:wrap}
+  .spin{display:inline-block;width:11px;height:11px;border:2px solid var(--line);border-top-color:var(--green);border-radius:50%;animation:s .8s linear infinite;vertical-align:-1px}
+  @keyframes s{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1><span class="shield">🛡</span> Sentinel — Live Proof</h1>
+  <div class="sub">Sentinel is a stop-loss whose brain lives <b>inside the contract</b>: a small neural
+  network, compiled into a Reactive contract, reads the Chainlink ETH/USD feed and decides
+  <b>HOLD, TRIM or EXIT</b> on its own — no keeper bot, no off-chain server.</div>
+  <div class="sub" style="margin-top:8px">This page is the receipts. Every number below is read
+  <b>live from the contracts</b> by your own browser as you open it — nothing here is typed in by hand.</div>
+  <div class="bar">
+    <button id="refresh">↻ Refresh</button>
+    <span class="pill">Last refreshed: <b id="refreshed">—</b></span>
+    <span class="pill">Status: <b id="loadstate"><span class="spin"></span> reading the chains…</b></span>
+  </div>
+</header>
+
+<h2>Trio #5 — the live system</h2>
+<p class="h2sub">The current release. The brain runs on the Reactive Lasna testnet; the vault it
+protects sits on Base Sepolia. Prices come from the real Chainlink ETH/USD feed.</p>
+
+<div class="grid">
+  <div class="card">
+    <h3>The brain — SentinelReactiveV5</h3>
+    <p class="role">Reactive contract · Lasna · decides HOLD / TRIM / EXIT and can buy back in (re-risk)</p>
+    <div class="addr">0x0Fdab4F59e877B2f9f695Bd285b72831336caCd4</div>
+    <table class="kv">
+      <tr><td class="k">Fuel (lREACT balance)</td><td class="v" data-f="r5-balance">…</td></tr>
+      <tr><td class="k">Price updates ingested</td><td class="v" data-f="r5-updates">…</td></tr>
+      <tr><td class="k">Last price ingested (Chainlink ETH/USD)</td><td class="v" data-f="r5-lastprice">…</td></tr>
+      <tr><td class="k">Anchor (leaky peak the model watches)</td><td class="v" data-f="r5-anchor">…</td></tr>
+      <tr><td class="k">Last decision</td><td class="v" data-f="r5-action">…</td></tr>
+      <tr><td class="k">Duplicate logs ignored (replay guard)</td><td class="v" data-f="r5-dups">…</td></tr>
+      <tr><td class="k">Re-risk episode open?</td><td class="v" data-f="r5-episode">…</td></tr>
+      <tr><td class="k">Re-risk tranches fired (all episodes)</td><td class="v" data-f="r5-rerisk">…</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>The vault — SentinelVaultV4</h3>
+    <p class="role">Destination contract · Base Sepolia · holds the position, obeys the brain's callbacks</p>
+    <div class="addr">0xb13BF7Ff153e7f6304735EC4199B006Fd4857Ac9</div>
+    <table class="kv">
+      <tr><td class="k">Position (risk asset, WETH)</td><td class="v" data-f="v5-position">…</td></tr>
+      <tr><td class="k">Safe balance (mock USDC, from de-risking)</td><td class="v" data-f="v5-safe">…</td></tr>
+      <tr><td class="k">Position closed by an EXIT?</td><td class="v" data-f="v5-closed">…</td></tr>
+      <tr><td class="k">Protection callbacks executed</td><td class="v" data-f="v5-prot">…</td></tr>
+      <tr><td class="k">Re-risk callbacks executed</td><td class="v" data-f="v5-rerisk">…</td></tr>
+      <tr><td class="k">Callback billing balance (ETH)</td><td class="v" data-f="v5-eth">…</td></tr>
+      <tr><td class="k">Swap desk reserve (mock USDC)</td><td class="v" data-f="s5-reserve">…</td></tr>
+      <tr><td class="k">Swap desk reserve (WETH)</td><td class="v" data-f="s5-riskreserve">…</td></tr>
+    </table>
+  </div>
+</div>
+
+<h2>Event feed — what the live system has done</h2>
+<p class="h2sub">Decisions and callbacks from the trio #5 contracts, newest first. Every row links to
+its transaction — check it yourself. The main trio has been live since 19 Nov 2026 on a quiet feed,
+so a short feed is the honest picture: it ingests real prices and holds.</p>
+<div class="feed" id="feed"><div class="ev INFO"><span class="spin"></span> Reading events from Lasna and Base Sepolia…</div></div>
+
+<h2>Proven cycle — the rehearsal trio</h2>
+<p class="h2sub">Same contract code as the live trio, driven end-to-end on a <b>mock price oracle</b>
+(testnet rehearsal, 19 Nov 2026): a full fall, a two-step buy-back, and a second fall. This is the
+firing proof — the main trio's feed simply hasn't fallen yet.</p>
+
+<div class="note" style="margin-bottom:14px">
+  <b>Read live from the rehearsal contracts right now:</b>
+  price updates ingested <b data-f="r5r-updates">…</b> ·
+  protections executed <b data-f="v5r-prot">…</b> ·
+  re-risk tranches <b data-f="v5r-rerisk">…</b> ·
+  vault closed <b data-f="v5r-closed">…</b> ·
+  safe balance left in the vault <b data-f="v5r-safe">…</b> mock USDC.
+  After the run, vault + swap desk mock USDC added up to exactly the 1,000.000 seed — reconciled to the wei.
+</div>
+
+<div class="tl" id="timeline"></div>
+
+<h2>Check the code yourself</h2>
+<p class="h2sub">Every contract below is verified on Sourcify with an exact match — the code you read
+is the code that runs.</p>
+<div class="verify" id="verify"></div>
+
+<footer>
+  <a href="https://dorahacks.io/build/51122" target="_blank" rel="noopener">DoraHacks build #51122</a>
+  <a href="https://github.com/Badutitem/sentinel-reactive" target="_blank" rel="noopener">GitHub repo</a>
+  <a href="https://www.youtube.com/watch?v=zXZDM-lRKeY" target="_blank" rel="noopener">Demo video (1:41)</a>
+  <span>Read-only page: no wallet, no keys, nothing to sign.</span>
+</footer>
+
+</div>
+<script>
+"use strict";
+/* ---------- config ---------- */
+const LASNA_RPCS = ["https://lasna-rpc.rnk.dev"]; // Lasna has one public RPC; retries below still apply
+const BASE_RPCS_CALL = ["https://sepolia.base.org","https://base-sepolia-rpc.publicnode.com","https://base-sepolia.gateway.tenderly.co","https://base-sepolia.drpc.org"];
+const BASE_RPCS_LOGS = ["https://base-sepolia-rpc.publicnode.com","https://base-sepolia.gateway.tenderly.co","https://sepolia.base.org","https://base-sepolia.drpc.org"];
+const REACTSCAN = "https://lasna.reactscan.net";
+const BASESCAN  = "https://sepolia.basescan.org";
+
+const R5  = "0x0Fdab4F59e877B2f9f695Bd285b72831336caCd4"; // SentinelReactiveV5, Lasna
+const R5_DEPLOY = 8726755;
+const V5  = "0xb13BF7Ff153e7f6304735EC4199B006Fd4857Ac9"; // SentinelVaultV4, Base Sepolia
+const V5_DEPLOY = 60811963;
+const S5  = "0x80c3BF688b08ac03D3aE7396cDd96770F7ce572a"; // SentinelSwapV2, Base Sepolia
+const R5R = "0x1123b38e933D0a87D5846456c1ed6E94c936e3e1"; // rehearsal reactive, Lasna
+const V5R = "0x242719F815141ad08286f29a23025b9244efd60e"; // rehearsal vault, Base Sepolia
+
+const SEL = { updates:"0x68a82ef6", anchorPeak:"0x4e801ffc", lastAction:"0x89f71d53",
+  duplicatesIgnored:"0x58aec1ac", episodeActive:"0xccecbdaf", episodeAnchor:"0x8b169dac",
+  tranche1Fired:"0x7862b6ee", tranche2Fired:"0x99157f7d", reriskCount:"0x8beaf925",
+  positionSize:"0x84f523ad", safeBalance:"0x88780b8e", closed:"0x597e1fb5",
+  protectionCount:"0x9b02c402", reserve:"0xcd3293de", riskReserve:"0x44c5999e" };
+const TOPIC = {
+  PriceSeen:"0xd835ba2bc227150e613ee209169441eaa417f430d04632345983d855a95ba9a6",
+  Decision:"0x953c77171e42ede9b4af2df0081e1f06bf35501b207993ce9340902faa40e3a6",
+  CallbackRequested:"0x4f00175060ca94fae8c6ac24a7b9a64eb44658efe38c54ec3ab56f67cd79a42d",
+  TrimSuppressed:"0xb4b0067a74881b99e6372aa2990ed4a03be814b1ed9e0413f2c30f73fd517a02",
+  EpisodeOpened:"0x251e9690aae494ba6b320799fdfec8e88a8f537bd7e2862998faa19a72c1a9b3",
+  EpisodeCancelled:"0xc6e9447f7622be80757ab435a291ad85f0dc7cbae9d1186719522956eedb6442",
+  ProtectionExecuted:"0x384900fde4c9615d84b610a4889a0568ca153695045bc2a183a3c21950ada34e",
+  DeRisked:"0x2daf4dea00efb60715717c9623908d454c5e5d845a7196b32e9f1384426bec50",
+  ReRisked:"0x9fcf1dda8d7e7cf9836744c31ed05f39edf04fa0cd6e5702fe58a9345a1d9af9" };
+const ACTIONS = ["HOLD","TRIM","EXIT","RERISK","RERISK_FINAL"];
+const ACTION_LABEL = {0:"HOLD",1:"TRIM — sell half",2:"EXIT — sell all",3:"RERISK — buy back, tranche 1",4:"RERISK_FINAL — buy back, tranche 2"};
+
+/* ---------- tiny JSON-RPC client (fetch, retries + endpoint failover) ---------- */
+let rpcId = 0;
+async function rpcOnce(url, method, params){
+  const ctl = new AbortController(); const to = setTimeout(()=>ctl.abort(), 15000);
+  try{
+    const res = await fetch(url, {method:"POST", signal:ctl.signal,
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({jsonrpc:"2.0", id:++rpcId, method, params})});
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    const j = await res.json();
+    if(j.error) throw new Error(j.error.message || "RPC error");
+    return j.result;
+  } finally { clearTimeout(to); }
+}
+async function rpc(urls, method, params){
+  let lastErr;
+  for(const url of urls){
+    for(let attempt=0; attempt<2; attempt++){
+      try{ return await rpcOnce(url, method, params); }
+      catch(e){ lastErr = e; }
+    }
+  }
+  throw lastErr || new Error("all RPC endpoints failed");
+}
+const call = (urls, to, data) => rpc(urls, "eth_call", [{to, data}, "latest"]);
+const balance = (urls, addr) => rpc(urls, "eth_getBalance", [addr, "latest"]);
+const blockNumber = urls => rpc(urls, "eth_blockNumber", []);
+async function blockTime(urls, blk){
+  const b = await rpc(urls, "eth_getBlockByNumber", ["0x"+blk.toString(16), false]);
+  return parseInt(b.timestamp, 16);
+}
+
+/* ---------- decoding / formatting ---------- */
+const U = hex => BigInt(hex);                       // uint256 word -> BigInt
+const I = hex => { const v = BigInt(hex); return v >= (1n<<255n) ? v - (1n<<256n) : v; }; // int256
+const words = data => { const out=[]; for(let i=2;i+64<=data.length;i+=64) out.push("0x"+data.slice(i,i+64)); return out; };
+const fmtTok = (wei, sym, maxDp=6) => {
+  const v = Number(wei) / 1e18;
+  return v.toLocaleString("en-US",{minimumFractionDigits:0, maximumFractionDigits:maxDp}) + (sym ? " "+sym : "");
+};
+const fmtPrice = raw => "$" + (Number(raw)/1e18).toLocaleString("en-US",{minimumFractionDigits:2, maximumFractionDigits:2});
+const fmtTs = ts => new Date(ts*1000).toLocaleString("en-GB",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}) + " UTC";
+const short = h => h.slice(0,10) + "…" + h.slice(-6);
+function setField(name, html){
+  document.querySelectorAll('[data-f="'+name+'"]').forEach(el => el.innerHTML = html);
+}
+const UNAVAIL = '<span class="unavail">unavailable</span>';
+async function fill(name, promise, fmt){
+  try{ setField(name, fmt(await promise)); }
+  catch(e){ setField(name, UNAVAIL); }
+}
+
+/* ---------- log scanning (chunked, newest last; caller sorts) ---------- */
+async function scanLogs(urls, address, topics, fromBlock, chunk){
+  const head = parseInt(await blockNumber(urls), 16);
+  const jobs = [];
+  for(let f = fromBlock; f <= head; f += chunk) jobs.push([f, Math.min(f+chunk-1, head)]);
+  const out = [];
+  for(let i=0; i<jobs.length; i+=5){                       // 5 chunks in flight at a time
+    const batch = jobs.slice(i, i+5);
+    const rs = await Promise.all(batch.map(([f,t]) =>
+      rpc(urls, "eth_getLogs", [{address, topics:[topics], fromBlock:"0x"+f.toString(16), toBlock:"0x"+t.toString(16)}])
+        .catch(()=>null)));
+    rs.forEach(r => { if(Array.isArray(r)) out.push(...r); });
+  }
+  return out;
+}
+
+/* ---------- live state: trio #5 main ---------- */
+async function loadMain(){
+  fill("r5-balance", balance(LASNA_RPCS, R5), v => fmtTok(U(v), "lREACT"));
+  fill("r5-updates", call(LASNA_RPCS, R5, SEL.updates), v => U(v).toString());
+  fill("r5-anchor",  call(LASNA_RPCS, R5, SEL.anchorPeak), v => fmtPrice(U(v)));
+  fill("r5-dups",    call(LASNA_RPCS, R5, SEL.duplicatesIgnored), v => U(v).toString());
+  fill("r5-rerisk",  call(LASNA_RPCS, R5, SEL.reriskCount), v => U(v).toString());
+  fill("r5-action",  call(LASNA_RPCS, R5, SEL.lastAction), v => {
+    const a = Number(U(v)); return '<span class="act '+ACTIONS[a]+'">'+ACTIONS[a]+"</span>";
+  });
+  fill("r5-episode", (async()=>{
+    const active = U(await call(LASNA_RPCS, R5, SEL.episodeActive)) === 1n;
+    if(!active) return "no";
+    const anchor = U(await call(LASNA_RPCS, R5, SEL.episodeAnchor));
+    const t1 = U(await call(LASNA_RPCS, R5, SEL.tranche1Fired)) === 1n;
+    return "yes — anchor " + fmtPrice(anchor) + (t1 ? " · tranche 1 fired" : " · waiting for tranche 1");
+  })(), v => v);
+
+  fill("v5-position", call(BASE_RPCS_CALL, V5, SEL.positionSize), v => fmtTok(U(v), "WETH"));
+  fill("v5-safe",     call(BASE_RPCS_CALL, V5, SEL.safeBalance),  v => fmtTok(U(v), "mUSDC"));
+  fill("v5-closed",   call(BASE_RPCS_CALL, V5, SEL.closed), v => U(v)===1n ? "yes" : "no — position open");
+  fill("v5-prot",     call(BASE_RPCS_CALL, V5, SEL.protectionCount), v => U(v).toString());
+  fill("v5-rerisk",   call(BASE_RPCS_CALL, V5, SEL.reriskCount), v => U(v).toString());
+  fill("v5-eth",      balance(BASE_RPCS_CALL, V5), v => fmtTok(U(v), "ETH"));
+  fill("s5-reserve",     call(BASE_RPCS_CALL, S5, SEL.reserve), v => fmtTok(U(v), "mUSDC", 2));
+  fill("s5-riskreserve", call(BASE_RPCS_CALL, S5, SEL.riskReserve), v => fmtTok(U(v), "WETH"));
+}
+
+/* ---------- live state: rehearsal trio (for the proven-cycle strip) ---------- */
+async function loadRehearsalState(){
+  fill("r5r-updates", call(LASNA_RPCS, R5R, SEL.updates), v => U(v).toString());
+  fill("v5r-prot",   call(BASE_RPCS_CALL, V5R, SEL.protectionCount), v => U(v).toString());
+  fill("v5r-rerisk", call(BASE_RPCS_CALL, V5R, SEL.reriskCount), v => U(v).toString());
+  fill("v5r-closed", call(BASE_RPCS_CALL, V5R, SEL.closed), v => U(v)===1n ? "yes" : "no");
+  fill("v5r-safe",   call(BASE_RPCS_CALL, V5R, SEL.safeBalance), v => (Number(U(v))/1e18).toFixed(6));
+}
+
+/* ---------- event feed: trio #5 main ---------- */
+function evRow(cls, what, detail, tsText, explorer, tx){
+  return '<div class="ev '+cls+'"><span class="what">'+what+'</span> — '+detail+
+    '<br><span class="t">'+tsText+'</span> · <a href="'+explorer+'/tx/'+tx+'" target="_blank" rel="noopener">tx '+short(tx)+'</a></div>';
+}
+async function loadFeed(){
+  const feedEl = document.getElementById("feed");
+  const items = [];   // {ts, html}
+  const timeCache = {};
+  const getTs = async (urls, blk) => {
+    const key = urls[0]+blk;
+    if(!(key in timeCache)) timeCache[key] = await blockTime(urls, blk).catch(()=>0);
+    return timeCache[key];
+  };
+  try{
+    const rTopics = [TOPIC.PriceSeen, TOPIC.Decision, TOPIC.CallbackRequested, TOPIC.TrimSuppressed, TOPIC.EpisodeOpened, TOPIC.EpisodeCancelled];
+    const logs = await scanLogs(LASNA_RPCS, R5, rTopics, R5_DEPLOY, 30000);
+    let lastPrice = null;
+    for(const l of logs){
+      const t0 = l.topics[0], w = words(l.data), blk = parseInt(l.blockNumber, 16);
+      const ts = await getTs(LASNA_RPCS, blk);
+      if(t0 === TOPIC.PriceSeen){
+        lastPrice = U(w[0]);
+        items.push({ts, html: evRow("PRICE", "Price ingested", "Chainlink ETH/USD at "+fmtPrice(U(w[0]))+" (update #"+U(w[2]).toString()+")", fmtTs(ts), REACTSCAN, l.transactionHash)});
+      } else if(t0 === TOPIC.Decision){
+        const a = Number(U(w[2]));
+        items.push({ts, html: evRow(ACTIONS[a], "Decision: "+ACTIONS[a], "at "+fmtPrice(U(w[0]))+" · model scores HOLD "+(Number(I(w[3]))/1e6).toFixed(2)+" / TRIM "+(Number(I(w[4]))/1e6).toFixed(2)+" / EXIT "+(Number(I(w[5]))/1e6).toFixed(2), fmtTs(ts), REACTSCAN, l.transactionHash)});
+      } else if(t0 === TOPIC.CallbackRequested){
+        const a = Number(U(w[0]));
+        items.push({ts, html: evRow(ACTIONS[a], "Callback sent to the vault: "+ACTIONS[a], "the vault on Base Sepolia executes it", fmtTs(ts), REACTSCAN, l.transactionHash)});
+      } else if(t0 === TOPIC.TrimSuppressed){
+        items.push({ts, html: evRow("INFO", "TRIM suppressed", "a repeat TRIM inside the same fall is ignored on purpose (update #"+U(w[2]).toString()+")", fmtTs(ts), REACTSCAN, l.transactionHash)});
+      } else if(t0 === TOPIC.EpisodeOpened){
+        items.push({ts, html: evRow("INFO", "Re-risk episode opened", "buy-back is now armed against anchor "+fmtPrice(U(w[0])), fmtTs(ts), REACTSCAN, l.transactionHash)});
+      } else if(t0 === TOPIC.EpisodeCancelled){
+        items.push({ts, html: evRow("INFO", "Re-risk episode cancelled", "price ran away before tranche 1, at "+fmtPrice(U(w[0])), fmtTs(ts), REACTSCAN, l.transactionHash)});
+      }
+    }
+    if(lastPrice !== null) setField("r5-lastprice", fmtPrice(lastPrice));
+    else setField("r5-lastprice", UNAVAIL);
+  }catch(e){ setField("r5-lastprice", UNAVAIL); }
+  try{
+    const vTopics = [TOPIC.ProtectionExecuted, TOPIC.DeRisked, TOPIC.ReRisked];
+    const logs = await scanLogs(BASE_RPCS_LOGS, V5, vTopics, V5_DEPLOY, 50000);
+    for(const l of logs){
+      const t0 = l.topics[0], w = words(l.data), blk = parseInt(l.blockNumber, 16);
+      const ts = await getTs(BASE_RPCS_CALL, blk);
+      if(t0 === TOPIC.ProtectionExecuted){
+        const a = Number(U(w[1]));
+        items.push({ts, html: evRow(ACTIONS[a], "Vault executed: "+ACTIONS[a], "position "+fmtTok(U(w[2]), "WETH")+" → "+fmtTok(U(w[3]), "WETH"), fmtTs(ts), BASESCAN, l.transactionHash)});
+      } else if(t0 === TOPIC.DeRisked){
+        const a = Number(U(w[0]));
+        items.push({ts, html: evRow(ACTIONS[a], "De-risked ("+ACTIONS[a]+")", "sold "+fmtTok(U(w[1]), "WETH")+" for "+fmtTok(U(w[2]), "mUSDC"), fmtTs(ts), BASESCAN, l.transactionHash)});
+      } else if(t0 === TOPIC.ReRisked){
+        items.push({ts, html: evRow("RERISK", "Bought back in", "spent "+fmtTok(U(w[0]), "mUSDC")+" for "+fmtTok(U(w[1]), "WETH"), fmtTs(ts), BASESCAN, l.transactionHash)});
+      }
+    }
+  }catch(e){ /* vault feed unavailable; state cards already show the counters */ }
+  if(!items.length){
+    feedEl.innerHTML = '<div class="ev INFO">No events could be read right now — the RPC endpoints did not answer. Use the Refresh button, or check the contracts on the explorers below.</div>';
+    return;
+  }
+  items.sort((a,b)=>b.ts-a.ts);
+  feedEl.innerHTML = items.slice(0, 14).map(i=>i.html).join("");
+}
+
+/* ---------- proven cycle timeline (recorded in TRIO5.md, tx-linked) ---------- */
+const CYCLE = [
+  {a:"TRIM", upd:7,  fill:"Sold half the position: 0.0001 WETH → 0.0096136 mUSDC at $96.136, as the fall began.",
+   react:"0x91feb3c144c75707800beaae45a83386da9c7ee04469c7c6c890a1a05d418cc2", cb:"0x695bc61d56426db30892125b7cd4a73ed652a65fd5d93d8ec6c0144f4135a54e"},
+  {a:"EXIT", upd:15, fill:"Sold the rest at the bottom of the fall: 0.0001 WETH → 0.0081789 mUSDC at $81.789. Position closed; the buy-back episode opened (anchor $99.20). Seven repeat TRIMs during the fall were suppressed.",
+   react:"0x5258932dae9b16561a58eaff58f20c6844e89490f2c9313036e9b027ce13b032", cb:"0x12ad313a59b3c9d95168f6a8acfe920c013e33767a6658137b59db66f02c5276"},
+  {a:"RERISK", upd:18, fill:"Tranche 1 — price recovered to $96.50 (≥ 97% of the episode anchor, 3 updates after the EXIT): bought back with half the safe balance, 0.00889625 mUSDC → 0.00009219 WETH.",
+   react:"0x37f17e7cd6c9bc1c7921ef17a489f2476cd9fd8433b0bab570e1def99d4f3c9a", cb:"0xa73e1f2c47ac9ebaa181c46db132d224031f166bdfe7d840b3fa2af3478bdc19"},
+  {a:"RERISK_FINAL", upd:19, fill:"Tranche 2 — the $99.50 print set a new high above the episode anchor: spent the rest, 0.00889625 mUSDC → 0.00008941 WETH. Fully back in.",
+   react:"0x0517d54dba38cd6147e8a2c394256741bd2c9e66c4f5dc422f4e5319de3b5b93", cb:"0xe0bf60a30d2bf063cb40b68d338ef59469faf0578a6606ee6ccd9cf52a56fd13"},
+  {a:"TRIM", upd:25, fill:"Second fall, after an owner re-arm deposit: sold half again, 0.00019080 WETH → 0.01785044 mUSDC at $93.556.",
+   react:"0x7335744027daf06bfc51001c6528122ee8bb621bc15233617fef19a678a8629e", cb:"0xed71abeb6d1672436f01ae11de6bd395d65eda59824f3e39dd4a947c64f21acc"},
+  {a:"EXIT", upd:31, fill:"Sold the rest at $82.876: 0.00019080 WETH → 0.01581269 mUSDC. Position closed. Final balances matched the prediction to the wei.",
+   react:"0x91dd2bd5050d84a45e12303bd300ff70f137c89101d76243180950bb1b160cd7", cb:"0x9cf875168d2d2cec87cd3b9a8404385b4dd48c980785417df782a07e5d684171"}
+];
+document.getElementById("timeline").innerHTML = CYCLE.map(s =>
+  '<div class="step '+s.a+'"><span class="act '+s.a+'">'+s.a+'</span> <span style="color:var(--faint)">· price update #'+s.upd+'</span>'+
+  '<p>'+s.fill+'</p><div class="links">decision tx: <a href="'+REACTSCAN+'/tx/'+s.react+'" target="_blank" rel="noopener">'+short(s.react)+'</a> · '+
+  'vault callback tx: <a href="'+BASESCAN+'/tx/'+s.cb+'" target="_blank" rel="noopener">'+short(s.cb)+'</a></div></div>').join("");
+
+/* ---------- verify cards ---------- */
+const CONTRACTS = [
+  {name:"SentinelReactiveV5 — the brain (trio #5)", chain:"Lasna · 5318007", addr:R5, explorer:REACTSCAN},
+  {name:"SentinelVaultV4 — the vault (trio #5)", chain:"Base Sepolia · 84532", addr:V5, explorer:BASESCAN},
+  {name:"SentinelSwapV2 — the swap desk (trio #5)", chain:"Base Sepolia · 84532", addr:S5, explorer:BASESCAN},
+  {name:"SentinelReactiveV5 — rehearsal brain (#5R)", chain:"Lasna · 5318007", addr:R5R, explorer:REACTSCAN},
+  {name:"SentinelVaultV4 — rehearsal vault (#5R)", chain:"Base Sepolia · 84532", addr:V5R, explorer:BASESCAN}
+];
+document.getElementById("verify").innerHTML = CONTRACTS.map(c =>
+  '<div class="vcard"><h4>'+c.name+'</h4><div style="color:var(--faint)">'+c.chain+'</div>'+
+  '<div class="addr">'+c.addr+'</div>'+
+  '<a href="https://sourcify.dev/#/lookup/'+c.addr+'" target="_blank" rel="noopener">Sourcify (exact match)</a>'+
+  '<a href="'+c.explorer+'/address/'+c.addr+'" target="_blank" rel="noopener">Explorer</a></div>').join("");
+
+/* ---------- boot / refresh ---------- */
+let refreshing = false;
+async function refresh(){
+  if(refreshing) return; refreshing = true;
+  const btn = document.getElementById("refresh"); btn.disabled = true;
+  document.getElementById("loadstate").innerHTML = '<span class="spin"></span> reading the chains…';
+  await Promise.allSettled([loadMain(), loadRehearsalState(), loadFeed()]);
+  document.getElementById("refreshed").textContent =
+    new Date().toLocaleString("en-GB",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",second:"2-digit"}) + " (your local time)";
+  document.getElementById("loadstate").textContent = "live — read from the contracts just now";
+  btn.disabled = false; refreshing = false;
+}
+document.getElementById("refresh").addEventListener("click", refresh);
+refresh();
+</script>
+</body>
+</html>
