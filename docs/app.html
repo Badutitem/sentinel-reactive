@@ -228,8 +228,20 @@ const U = hex => BigInt(hex);
 const argAddr = a => "0".repeat(24) + a.slice(2).toLowerCase();
 const argUint = v => v.toString(16).padStart(64, "0");
 const fmtTok = (wei, sym, maxDp=6) => {
-  const v = Number(wei) / 1e18;
-  return v.toLocaleString("en-US",{minimumFractionDigits:0, maximumFractionDigits:maxDp}) + (sym ? " "+sym : "");
+  let s;
+  if(wei === 0n){
+    s = "0";
+  } else if(wei >= 10n ** BigInt(18 - maxDp)){
+    const v = Number(wei) / 1e18;
+    s = v.toLocaleString("en-US",{minimumFractionDigits:0, maximumFractionDigits:maxDp});
+  } else {
+    /* tiny but non-zero: print the exact decimal (trailing zeros trimmed) — never a bare "0" */
+    const str = wei.toString().padStart(19, "0");
+    const ip = str.slice(0, str.length - 18) || "0";
+    const fp = str.slice(str.length - 18).replace(/0+$/, "");
+    s = fp ? ip + "." + fp : ip;
+  }
+  return s + (sym ? " " + sym : "");
 };
 const $ = id => document.getElementById(id);
 function log(msg){
@@ -420,6 +432,36 @@ async function refreshVault(){
   fill("v-rerisk",   call(VAULT, SEL.reriskCount), v => U(v).toString());
 }
 
+/* ---------- wallet events: handled in place, never a reload ---------- */
+function disconnectWallet(){
+  account = null;
+  $("w-status").textContent = "not connected";
+  $("w-addr").textContent = "—";
+  $("w-eth").textContent = "—";
+  $("w-weth").textContent = "—";
+  $("w-musdc").textContent = "—";
+  $("btn-refresh-bal").disabled = true;
+  $("btn-deposit").disabled = true;
+  setStep("d-step-wrap", "waiting");
+  setStep("d-step-approve", "waiting");
+  setStep("d-step-deposit", "waiting");
+  log("Wallet disconnected or locked. Connect again to continue.");
+}
+
+async function onChainChanged(chainId){
+  if(!account) return;
+  if(chainId === CHAIN_HEX){
+    $("w-status").textContent = "connected · Base Sepolia";
+    if(!depositing) $("btn-deposit").disabled = false;
+    log("Network: Base Sepolia — you are on the right chain.");
+    await refreshBalances();
+  } else {
+    $("w-status").textContent = "wrong network — switch to Base Sepolia";
+    $("btn-deposit").disabled = true;
+    log("Network changed to chain " + chainId + " — switch back to Base Sepolia (84532) to deposit.");
+  }
+}
+
 /* ---------- wiring ---------- */
 $("btn-connect").addEventListener("click", connect);
 $("btn-refresh-bal").addEventListener("click", refreshBalances);
@@ -427,9 +469,10 @@ $("btn-deposit").addEventListener("click", runDeposit);
 $("btn-refresh-vault").addEventListener("click", refreshVault);
 if(hasWallet() && window.ethereum.on){
   window.ethereum.on("accountsChanged", accs => {
-    if(accs && accs.length){ account = accs[0]; $("w-addr").textContent = account; refreshBalances(); }
+    if(!accs || !accs.length){ disconnectWallet(); return; }
+    account = accs[0]; $("w-addr").textContent = account; refreshBalances();
   });
-  window.ethereum.on("chainChanged", () => location.reload());
+  window.ethereum.on("chainChanged", chainId => { onChainChanged(chainId); });
 }
 if(!hasWallet()){
   $("w-status").textContent = "no wallet detected in this browser";
