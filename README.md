@@ -13,6 +13,7 @@ human watching charts at 3 a.m.
 | 🎥 **Demo video** | https://www.youtube.com/watch?v=zXZDM-lRKeY |
 | 🏛️ **DoraHacks build** | https://dorahacks.io/build/51122 |
 | 🔎 **Live proof** | https://badutitem.github.io/sentinel-reactive/ — every number on this page, read live from the contracts |
+| 🧪 **Demo app** | https://badutitem.github.io/sentinel-reactive/app.html — the demo shell, opened step by step: step 1 (wallet connect on Base Sepolia, your balances + the live guarded position in your own browser) is live; the test-mUSDC claim step is blocked by the token itself (mint is owner-only, no public faucet) |
 | 🎯 **Model accuracy** | **97.47%** on held-out series (shipped integer model; EXIT calls 100%) |
 | ⚡ **Firing loop** | **≈ 2 s** end-to-end (origin → reactive → callback), proven live on testnet |
 | 🧪 **Tests** | **144/144** Foundry tests pass, including exact-logit pins, a full-loop end-to-end suite, the real-asset vault suite, the Chainlink adapter suite, the model-v2 suite (bit-exact feature/logit parity against the training mirror), an adversarial suite (stale feed, whipsaw, replay, slow-grind and re-arm behaviour — see EVIDENCE.md), the trio #4 repair suites (replay deduplication, TRIM suppression, re-pinned adversarial cases — see TRIO4.md) and the trio #5 re-risk suites (two-tranche buy-back — see TRIO5.md) |

@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sentinel — Demo app</title>
+<meta name="description" content="Connect a wallet on Base Sepolia testnet and stand inside the Sentinel demo: your own balances and the live guarded position, read from the contracts in your browser.">
+<style>
+  :root{
+    --bg:#0b0e13; --card:#131822; --card2:#0f141d; --line:#232c3d;
+    --txt:#e8edf5; --dim:#9aa7ba; --faint:#64718a;
+    --green:#3fb97f; --amber:#e0a83c; --red:#e05c5c; --blue:#5ea8e8; --violet:#a78bfa;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.55 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  a{color:var(--blue);text-decoration:none} a:hover{text-decoration:underline}
+  .wrap{max-width:1020px;margin:0 auto;padding:28px 18px 60px}
+  header{border-bottom:1px solid var(--line);padding-bottom:20px;margin-bottom:24px}
+  h1{font-size:30px;margin:0 0 6px;letter-spacing:.2px}
+  h1 .shield{color:var(--green)}
+  .sub{color:var(--dim);font-size:17px;max-width:720px}
+  .sub b{color:var(--txt)}
+  .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:16px}
+  .pill{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:5px 12px;font-size:13px;color:var(--dim)}
+  .pill b{color:var(--txt);font-weight:600}
+  h2{font-size:20px;margin:30px 0 6px}
+  .h2sub{color:var(--dim);font-size:14px;margin:0 0 14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .card h3{margin:0 0 2px;font-size:16px}
+  .card .role{color:var(--faint);font-size:13px;margin:0 0 12px}
+  .addr{font-family:var(--mono);font-size:12px;color:var(--dim);word-break:break-all}
+  table.kv{width:100%;border-collapse:collapse;font-size:14.5px}
+  table.kv td{padding:5px 0;border-top:1px solid var(--card2);vertical-align:top}
+  table.kv tr:first-child td{border-top:0}
+  table.kv td.k{color:var(--dim);width:52%}
+  table.kv td.v{text-align:right;font-weight:600}
+  .unavail{color:var(--faint);font-weight:400;font-style:italic}
+  .note{background:var(--card2);border:1px dashed var(--line);border-radius:10px;padding:12px 16px;color:var(--dim);font-size:14px}
+  .note b{color:var(--txt)}
+  button.act{background:var(--green);color:#06130c;border:0;border-radius:8px;padding:9px 16px;font-size:14px;font-weight:700;cursor:pointer}
+  button.act.alt{background:var(--card);color:var(--txt);border:1px solid var(--line)}
+  button.act:disabled{opacity:.45;cursor:not-allowed}
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:12px}
+  .log{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:12px 16px;
+    font-size:13.5px;color:var(--dim);min-height:44px;white-space:pre-wrap;word-break:break-word}
+  footer{border-top:1px solid var(--line);margin-top:36px;padding-top:18px;color:var(--dim);font-size:14px;display:flex;gap:22px;flex-wrap:wrap}
+  .spin{display:inline-block;width:11px;height:11px;border:2px solid var(--line);border-top-color:var(--green);border-radius:50%;animation:s .8s linear infinite;vertical-align:-1px}
+  @keyframes s{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1><span class="shield">🛡</span> Sentinel — Demo app</h1>
+  <div class="sub">This is the demo you can <b>step into</b>: connect a wallet on the
+  <b>Base Sepolia testnet</b> and this page reads <b>your own balances</b> and the
+  <b>live guarded position</b> straight from the contracts — the same vault the Sentinel brain
+  watches on the real Chainlink ETH/USD feed.</div>
+  <div class="bar">
+    <span class="pill">Network: <b>Base Sepolia · 84532 · testnet</b></span>
+    <span class="pill">Want the full receipts? <a href="index.html"><b>← Live Proof page</b></a></span>
+  </div>
+</header>
+
+<div class="note">
+  <b>Where this demo stands, honestly.</b> The app is being opened up one step at a time, and each
+  step ships only after it is proven. <b>Step 1 — wallet connect — is live on this page.</b>
+  The next step would have been claiming test mock USDC, but that token's mint is owner-only:
+  there is <b>no public faucet</b>, so that step is blocked by the contract itself and the build
+  stops here for now. Deposits in this demo run through the live trio's own guarded position,
+  shown below — that is the working example. Testnet only: nothing here is real money.
+</div>
+
+<h2>Step 1 — connect your wallet</h2>
+<p class="h2sub">The page asks your wallet to switch to Base Sepolia (and offers to add the network
+if your wallet doesn't know it yet). Signing happens in your wallet — this page never sees a key,
+and connecting asks for no signature and moves nothing.</p>
+
+<div class="card">
+  <h3>Your wallet</h3>
+  <p class="role">Base Sepolia · chain 84532 · balances read live</p>
+  <table class="kv">
+    <tr><td class="k">Status</td><td class="v" id="w-status">not connected</td></tr>
+    <tr><td class="k">Address</td><td class="v addr" id="w-addr">—</td></tr>
+    <tr><td class="k">Your test ETH</td><td class="v" id="w-eth">—</td></tr>
+    <tr><td class="k">Your WETH</td><td class="v" id="w-weth">—</td></tr>
+    <tr><td class="k">Your mock USDC</td><td class="v" id="w-musdc">—</td></tr>
+  </table>
+  <div class="row">
+    <button class="act" id="btn-connect">Connect wallet</button>
+    <button class="act alt" id="btn-refresh-bal" disabled>↻ Refresh balances</button>
+    <span style="color:var(--dim);font-size:13.5px">No test ETH yet? Get some free from a public
+    Base Sepolia faucet (for example
+    <a href="https://www.alchemy.com/faucets/base-sepolia" target="_blank" rel="noopener">Alchemy's</a>)
+    — you only need it for later steps, not to connect.</span>
+  </div>
+</div>
+
+<h2 style="margin-top:22px">Connection log</h2>
+<div class="log" id="log">Nothing yet. Connect a wallet to start.</div>
+
+<h2>The guarded position — live</h2>
+<p class="h2sub">The live trio #5 position, read from the vault right now — the working example of
+what Sentinel guards. The brain that guards it lives on the Reactive Lasna testnet; its live state
+and the full firing proof are on the <a href="index.html">Live Proof page</a>.</p>
+
+<div class="card">
+  <h3>SentinelVaultV4 — the guarded vault</h3>
+  <p class="role">Destination contract · Base Sepolia · holds the position, obeys the brain's callbacks</p>
+  <div class="addr">0xb13BF7Ff153e7f6304735EC4199B006Fd4857Ac9</div>
+  <table class="kv">
+    <tr><td class="k">Position (WETH under guard)</td><td class="v" data-f="v-position">…</td></tr>
+    <tr><td class="k">Safe balance (mock USDC, from de-risking)</td><td class="v" data-f="v-safe">…</td></tr>
+    <tr><td class="k">Position closed by an EXIT?</td><td class="v" data-f="v-closed">…</td></tr>
+    <tr><td class="k">Protection callbacks executed</td><td class="v" data-f="v-prot">…</td></tr>
+    <tr><td class="k">Re-risk callbacks executed</td><td class="v" data-f="v-rerisk">…</td></tr>
+  </table>
+  <div class="row"><button class="act alt" id="btn-refresh-vault">↻ Refresh position</button></div>
+</div>
+
+<footer>
+  <a href="index.html">Live Proof page</a>
+  <a href="https://dorahacks.io/build/51122" target="_blank" rel="noopener">DoraHacks build #51122</a>
+  <a href="https://github.com/Badutitem/sentinel-reactive" target="_blank" rel="noopener">GitHub repo</a>
+  <a href="https://www.youtube.com/watch?v=zXZDM-lRKeY" target="_blank" rel="noopener">Demo video (1:41)</a>
+  <span>Demo shell, step 1: wallet connect. Testnet only — nothing here is real money.</span>
+</footer>
+
+</div>
+<script>
+"use strict";
+/* ---------- config ---------- */
+const BASE_RPCS = ["https://sepolia.base.org","https://base-sepolia-rpc.publicnode.com","https://base-sepolia.gateway.tenderly.co","https://base-sepolia.drpc.org"];
+const BASESCAN = "https://sepolia.basescan.org";
+const CHAIN_HEX = "0x14a34"; // Base Sepolia, 84532
+
+const WETH  = "0x4200000000000000000000000000000000000006"; // canonical Base WETH
+const MUSDC = "0x96E467Ff7958851d307D28118EBAAD333CAb85B2"; // MockUSDC (trio #5 safe asset)
+const VAULT = "0xb13BF7Ff153e7f6304735EC4199B006Fd4857Ac9"; // SentinelVaultV4 (trio #5)
+
+const SEL = {
+  balanceOf:"0x70a08231",
+  positionSize:"0x84f523ad", safeBalance:"0x88780b8e", closed:"0x597e1fb5",
+  protectionCount:"0x9b02c402", reriskCount:"0x8beaf925"
+};
+
+/* ---------- tiny JSON-RPC client (same failover style as the proof page) ---------- */
+let rpcId = 0;
+async function rpcOnce(url, method, params){
+  const ctl = new AbortController(); const to = setTimeout(()=>ctl.abort(), 15000);
+  try{
+    const res = await fetch(url, {method:"POST", signal:ctl.signal,
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({jsonrpc:"2.0", id:++rpcId, method, params})});
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    const j = await res.json();
+    if(j.error) throw new Error(j.error.message || "RPC error");
+    return j.result;
+  } finally { clearTimeout(to); }
+}
+async function rpc(method, params){
+  let lastErr;
+  for(const url of BASE_RPCS){
+    for(let attempt=0; attempt<2; attempt++){
+      try{ return await rpcOnce(url, method, params); }
+      catch(e){ lastErr = e; }
+    }
+  }
+  throw lastErr || new Error("all RPC endpoints failed");
+}
+const call = (to, data) => rpc("eth_call", [{to, data}, "latest"]);
+const ethBalance = addr => rpc("eth_getBalance", [addr, "latest"]);
+
+/* ---------- helpers ---------- */
+const U = hex => BigInt(hex);
+const argAddr = a => "0".repeat(24) + a.slice(2).toLowerCase();
+const fmtTok = (wei, sym, maxDp=6) => {
+  const v = Number(wei) / 1e18;
+  return v.toLocaleString("en-US",{minimumFractionDigits:0, maximumFractionDigits:maxDp}) + (sym ? " "+sym : "");
+};
+const $ = id => document.getElementById(id);
+function log(msg){
+  const el = $("log");
+  if(el.dataset.empty){ el.textContent = ""; delete el.dataset.empty; }
+  el.textContent += (el.textContent ? "\n" : "") + msg;
+}
+$("log").dataset.empty = "1";
+
+/* ---------- step 1: wallet connect ---------- */
+let account = null;
+const hasWallet = () => typeof window.ethereum !== "undefined" && !!window.ethereum.request;
+
+async function ensureChain(){
+  const cur = await window.ethereum.request({method:"eth_chainId"});
+  if(cur === CHAIN_HEX) return "already on Base Sepolia";
+  try{
+    await window.ethereum.request({method:"wallet_switchEthereumChain", params:[{chainId:CHAIN_HEX}]});
+    return "wallet switched to Base Sepolia";
+  }catch(e){
+    if(e && (e.code === 4902 || /unrecognized chain/i.test(e.message||""))){
+      await window.ethereum.request({method:"wallet_addEthereumChain", params:[{
+        chainId: CHAIN_HEX, chainName: "Base Sepolia",
+        nativeCurrency: {name:"Ether", symbol:"ETH", decimals:18},
+        rpcUrls: ["https://sepolia.base.org"],
+        blockExplorerUrls: [BASESCAN]
+      }]});
+      return "Base Sepolia added to the wallet and selected";
+    }
+    throw e;
+  }
+}
+
+async function connect(){
+  if(!hasWallet()){
+    log("No wallet found in this browser. Install a wallet extension (for example MetaMask), then reload this page.");
+    return;
+  }
+  try{
+    const accs = await window.ethereum.request({method:"eth_requestAccounts"});
+    if(!accs || !accs.length) throw new Error("the wallet returned no account");
+    account = accs[0];
+    const chainNote = await ensureChain();
+    $("w-status").textContent = "connected · Base Sepolia";
+    $("w-addr").textContent = account;
+    $("btn-refresh-bal").disabled = false;
+    log("Wallet connected: " + account + " (" + chainNote + ").");
+    await refreshBalances();
+  }catch(e){
+    log("Connect failed: " + (e.message || e));
+  }
+}
+
+async function refreshBalances(){
+  if(!account) return;
+  try{
+    const [eth, weth, musdc] = await Promise.all([
+      ethBalance(account),
+      call(WETH, SEL.balanceOf + argAddr(account)),
+      call(MUSDC, SEL.balanceOf + argAddr(account))
+    ]);
+    $("w-eth").textContent = fmtTok(U(eth), "ETH");
+    $("w-weth").textContent = fmtTok(U(weth), "WETH");
+    $("w-musdc").textContent = fmtTok(U(musdc), "mUSDC");
+    log("Balances read live: " + fmtTok(U(eth), "ETH") + " · " + fmtTok(U(weth), "WETH") + " · " + fmtTok(U(musdc), "mUSDC") + ".");
+  }catch(e){
+    $("w-eth").innerHTML = '<span class="unavail">unavailable</span>';
+    log("Balance read failed — the RPC endpoints did not answer. Try Refresh.");
+  }
+}
+
+/* ---------- guarded position (live, no wallet needed) ---------- */
+function setField(name, html){
+  document.querySelectorAll('[data-f="'+name+'"]').forEach(el => el.innerHTML = html);
+}
+const UNAVAIL = '<span class="unavail">unavailable</span>';
+async function fill(name, promise, fmt){
+  try{ setField(name, fmt(await promise)); } catch(e){ setField(name, UNAVAIL); }
+}
+async function refreshVault(){
+  fill("v-position", call(VAULT, SEL.positionSize), v => fmtTok(U(v), "WETH"));
+  fill("v-safe",     call(VAULT, SEL.safeBalance),  v => fmtTok(U(v), "mUSDC"));
+  fill("v-closed",   call(VAULT, SEL.closed), v => U(v)===1n ? "yes" : "no — position open");
+  fill("v-prot",     call(VAULT, SEL.protectionCount), v => U(v).toString());
+  fill("v-rerisk",   call(VAULT, SEL.reriskCount), v => U(v).toString());
+}
+
+/* ---------- wiring ---------- */
+$("btn-connect").addEventListener("click", connect);
+$("btn-refresh-bal").addEventListener("click", refreshBalances);
+$("btn-refresh-vault").addEventListener("click", refreshVault);
+if(hasWallet() && window.ethereum.on){
+  window.ethereum.on("accountsChanged", accs => {
+    if(accs && accs.length){ account = accs[0]; $("w-addr").textContent = account; refreshBalances(); }
+  });
+  window.ethereum.on("chainChanged", () => location.reload());
+}
+if(!hasWallet()){
+  $("w-status").textContent = "no wallet detected in this browser";
+}
+refreshVault();
+</script>
+</body>
+</html>
