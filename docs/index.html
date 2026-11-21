@@ -149,6 +149,42 @@ firing proof — the main trio's feed simply hasn't fallen yet.</p>
 
 <div class="tl" id="timeline"></div>
 
+<h2>Measured in testing</h2>
+<p class="h2sub">Two results from the repo's own records. Unlike the numbers above, these do not
+change — they were measured once, in testing, and are written here exactly as measured.</p>
+
+<div class="grid">
+  <div class="card">
+    <h3>The model, measured</h3>
+    <p class="role">What the brain's decisions are worth, on data it never trained on</p>
+    <table class="kv">
+      <tr><td class="k">Weights the live trios run</td><td class="v">model v2</td></tr>
+      <tr><td class="k">Held-out accuracy (6,001 unseen windows)</td><td class="v">95.41%</td></tr>
+      <tr><td class="k">Per class — HOLD / TRIM / EXIT</td><td class="v">93.8% / 95.6% / 99.4%</td></tr>
+      <tr><td class="k">Contract test suite</td><td class="v">144/144 passing</td></tr>
+    </table>
+    <p style="color:var(--dim);font-size:14px;margin:12px 0 0">Accuracy here means agreement with the
+    hand-written stop-loss policy that labelled the training data, on synthetic price series the
+    model had never seen. It is not a trading-profit number.</p>
+  </div>
+
+  <div class="card">
+    <h3>The buy-back, measured</h3>
+    <p class="role">What re-risk costs, tested five ways against never buying back</p>
+    <table class="kv">
+      <tr><td class="k">Scenarios (synthetic + real Binance episodes)</td><td class="v">10</td></tr>
+      <tr><td class="k">Shipped rule's average result vs staying out</td><td class="v">−$40.41 per $1,000</td></tr>
+      <tr><td class="k">Buy-backs per de-risk episode</td><td class="v">at most 2</td></tr>
+      <tr><td class="k">Most a buy-back can spend</td><td class="v">the safe balance that de-risk raised</td></tr>
+    </table>
+    <p style="color:var(--dim);font-size:14px;margin:12px 0 0">Every buy-back rule tested lost money
+    on average against never re-entering — it paid in the real recoveries and cost in the real
+    crashes. The shipped two-step rule was the cheapest of the five. It is there so the stop-loss
+    works both ways, not because the backtest says it makes money. The two steps spend half the
+    safe balance at the reclaim, then the rest only on a new high.</p>
+  </div>
+</div>
+
 <h2>Check the code yourself</h2>
 <p class="h2sub">Every contract below is verified on Sourcify with an exact match — the code you read
 is the code that runs.</p>
