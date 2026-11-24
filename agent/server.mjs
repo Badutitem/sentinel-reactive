@@ -15,10 +15,14 @@
  * Sentinel Live Proof page (docs/index.html).
  *
  * Tools:
- *   sentinel_status           live trio #5 state, read at call time
+ *   sentinel_status           live flagship state, read at call time
  *   sentinel_events           recent decisions / callbacks / protections
  *   sentinel_prepare_deposit  unsigned wrap/approve/deposit txs for YOUR wallet
  *   sentinel_verify           the five contracts + Sourcify/explorer links
+ *
+ * The live system's vault is SentinelVaultV5, a per-user pool: a deposit
+ * mints shares in the depositor's name, and any holder can redeem their
+ * shares at any time for their pro-rata slice of both pool assets.
  */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -45,15 +49,15 @@ const REACTSCAN = "https://lasna.reactscan.net";
 const BASESCAN = "https://sepolia.basescan.org";
 const BASE_CHAIN_ID = 84532;
 
-const R5 = "0x0Fdab4F59e877B2f9f695Bd285b72831336caCd4"; // SentinelReactiveV5, Lasna
-const R5_DEPLOY = 8726755;
-const V5 = "0xb13BF7Ff153e7f6304735EC4199B006Fd4857Ac9"; // SentinelVaultV4, Base Sepolia
-const V5_DEPLOY = 60811963;
-const S5 = "0x80c3BF688b08ac03D3aE7396cDd96770F7ce572a"; // SentinelSwapV2, Base Sepolia
+const R5 = "0x37EeF5e3179E55c0e96E1528180B55Fa20DC150B"; // SentinelReactiveV5 — flagship brain, Lasna
+const R5_DEPLOY = 9172277;
+const V5 = "0x108513e6439664fdeE9050e1ccc208e8c1b61441"; // SentinelVaultV5 — flagship per-user vault, Base Sepolia
+const V5_DEPLOY = 63196568;
+const S5 = "0x17700999733F766968EA252D5a17ac39F96F2C28"; // SentinelSwapV2 — flagship desk, Base Sepolia
 const R5R = "0x1123b38e933D0a87D5846456c1ed6E94c936e3e1"; // rehearsal reactive, Lasna
 const V5R = "0x242719F815141ad08286f29a23025b9244efd60e"; // rehearsal vault, Base Sepolia
 const WETH = "0x4200000000000000000000000000000000000006"; // canonical Base WETH
-const MUSDC = "0x96E467Ff7958851d307D28118EBAAD333CAb85B2"; // MockUSDC (trio #5 safe asset)
+const MUSDC = "0x96E467Ff7958851d307D28118EBAAD333CAb85B2"; // MockUSDC (the pool's safe asset, mock)
 
 const SEL = {
   updates: "0x68a82ef6", anchorPeak: "0x4e801ffc", lastAction: "0x89f71d53",
@@ -62,7 +66,10 @@ const SEL = {
   positionSize: "0x84f523ad", safeBalance: "0x88780b8e", closed: "0x597e1fb5",
   protectionCount: "0x9b02c402", reserve: "0xcd3293de", riskReserve: "0x44c5999e",
   balanceOf: "0x70a08231", allowance: "0xdd62ed3e", approve: "0x095ea7b3",
-  wethDeposit: "0xd0e30db0", vaultDeposit: "0xb6b55f25"
+  wethDeposit: "0xd0e30db0", vaultDeposit: "0xb6b55f25",
+  sharesOf: "0xf5eb42dc", totalShares: "0x3a98ef39", claimOf: "0xfccd7f72",
+  managedRisk: "0x7bf1cb19", managedSafe: "0xba02153d",
+  priceSource: "0x20531bc9", latestPrice: "0x53084eff"
 };
 const TOPIC = {
   PriceSeen: "0xd835ba2bc227150e613ee209169441eaa417f430d04632345983d855a95ba9a6",
@@ -73,7 +80,9 @@ const TOPIC = {
   EpisodeCancelled: "0xc6e9447f7622be80757ab435a291ad85f0dc7cbae9d1186719522956eedb6442",
   ProtectionExecuted: "0x384900fde4c9615d84b610a4889a0568ca153695045bc2a183a3c21950ada34e",
   DeRisked: "0x2daf4dea00efb60715717c9623908d454c5e5d845a7196b32e9f1384426bec50",
-  ReRisked: "0x9fcf1dda8d7e7cf9836744c31ed05f39edf04fa0cd6e5702fe58a9345a1d9af9"
+  ReRisked: "0x9fcf1dda8d7e7cf9836744c31ed05f39edf04fa0cd6e5702fe58a9345a1d9af9",
+  SharesMinted: "0xd5103f333769455df788908e17b0f6f83838ebeae2cd1ed6f23ec20dad88c9a3",
+  SharesRedeemed: "0xc2c19174f35fcb7370641b55802c8f596e4827983eefbb49c33373ac0cad5a1d"
 };
 const ACTIONS = ["HOLD", "TRIM", "EXIT", "RERISK", "RERISK_FINAL"];
 
@@ -198,7 +207,7 @@ async function readLastPrice() {
 }
 
 async function readVaultState() {
-  const [position, safe, closed, prot, rerisk, ethBal, reserve, riskReserve] = await Promise.all([
+  const [position, safe, closed, prot, rerisk, ethBal, reserve, riskReserve, totalShares] = await Promise.all([
     call(BASE_RPCS_CALL, V5, SEL.positionSize),
     call(BASE_RPCS_CALL, V5, SEL.safeBalance),
     call(BASE_RPCS_CALL, V5, SEL.closed),
@@ -206,16 +215,20 @@ async function readVaultState() {
     call(BASE_RPCS_CALL, V5, SEL.reriskCount),
     getBalance(BASE_RPCS_CALL, V5),
     call(BASE_RPCS_CALL, S5, SEL.reserve),
-    call(BASE_RPCS_CALL, S5, SEL.riskReserve)
+    call(BASE_RPCS_CALL, S5, SEL.riskReserve),
+    call(BASE_RPCS_CALL, V5, SEL.totalShares)
   ]);
   return {
     vault: {
       address: V5,
       chain: "Base Sepolia (84532)",
+      kind: "per-user pooled vault (SentinelVaultV5) — deposits mint shares, holders redeem their own slice at any time",
       position_weth: fmtTok(U(position), "WETH"),
       position_weth_wei: U(position).toString(),
       safe_balance_musdc: fmtTok(U(safe), "mUSDC"),
       safe_balance_musdc_wei: U(safe).toString(),
+      total_shares_outstanding: fmtTok(U(totalShares), "shares"),
+      total_shares_outstanding_raw: U(totalShares).toString(),
       closed_by_exit: U(closed) === 1n,
       protection_callbacks_executed: Number(U(prot)),
       rerisk_callbacks_executed: Number(U(rerisk)),
@@ -262,13 +275,19 @@ async function collectEvents(limit) {
       items.push({ ...base, kind: "EpisodeCancelled", detail: "Re-risk episode cancelled at " + fmtPrice(U(w[0])) });
     }
   }
-  const vTopics = [TOPIC.ProtectionExecuted, TOPIC.DeRisked, TOPIC.ReRisked];
+  const vTopics = [TOPIC.ProtectionExecuted, TOPIC.DeRisked, TOPIC.ReRisked, TOPIC.SharesMinted, TOPIC.SharesRedeemed];
   const vLogs = await scanLogs(BASE_RPCS_LOGS, V5, vTopics, V5_DEPLOY, 50000);
   for (const l of vLogs) {
     const t0 = l.topics[0], w = words(l.data), blk = parseInt(l.blockNumber, 16);
     const ts = await getTs(BASE_RPCS_CALL, blk);
     const base = { time: fmtTs(ts), timestamp: ts, chain: "Base Sepolia", tx: l.transactionHash, explorer_tx: BASESCAN + "/tx/" + l.transactionHash };
-    if (t0 === TOPIC.ProtectionExecuted) {
+    if (t0 === TOPIC.SharesMinted) {
+      const user = "0x" + l.topics[1].slice(-40);
+      items.push({ ...base, kind: "SharesMinted", detail: "Deposit: " + fmtTok(U(w[0]), "WETH") + " in, " + fmtTok(U(w[1]), "shares") + " minted to " + user });
+    } else if (t0 === TOPIC.SharesRedeemed) {
+      const user = "0x" + l.topics[1].slice(-40);
+      items.push({ ...base, kind: "SharesRedeemed", detail: "Redeemed by " + user + ": " + fmtTok(U(w[0]), "shares") + " burned for " + fmtTok(U(w[1]), "WETH") + " + " + fmtTok(U(w[2]), "mUSDC") });
+    } else if (t0 === TOPIC.ProtectionExecuted) {
       const a = Number(U(w[1]));
       items.push({ ...base, kind: "ProtectionExecuted", action: ACTIONS[a], detail: "Vault executed " + ACTIONS[a] + ": position " + fmtTok(U(w[2]), "WETH") + " -> " + fmtTok(U(w[3]), "WETH") });
     } else if (t0 === TOPIC.DeRisked) {
@@ -283,13 +302,13 @@ async function collectEvents(limit) {
 }
 
 /* ---------------- MCP server ---------------- */
-const server = new McpServer({ name: "sentinel", version: "1.0.0" });
+const server = new McpServer({ name: "sentinel", version: "1.1.0" });
 const json = obj => ({ content: [{ type: "text", text: JSON.stringify(obj, null, 2) }] });
 const fail = e => ({ isError: true, content: [{ type: "text", text: "Error: " + (e && e.message ? e.message : String(e)) }] });
 
 server.tool(
   "sentinel_status",
-  "Live state of Sentinel trio #5, read from the contracts at call time: the brain on Lasna (lREACT fuel, price updates ingested, last Chainlink ETH/USD price, anchor, last decision HOLD/TRIM/EXIT/RERISK), the guarded vault on Base Sepolia (WETH position, mock-USDC safe balance, closed?, protection and re-risk callback counts, callback billing balance), and the swap desk reserves.",
+  "Live state of the Sentinel live system (the per-user flagship), read from the contracts at call time: the brain on Lasna (lREACT fuel, price updates ingested, last Chainlink ETH/USD price, anchor, last decision HOLD/TRIM/EXIT/RERISK), the per-user pooled vault on Base Sepolia (WETH position, mock-USDC safe balance, total shares outstanding, closed?, protection and re-risk callback counts, callback billing balance), and the swap desk reserves.",
   {},
   async () => {
     try {
@@ -297,7 +316,7 @@ server.tool(
         readBrainState(), readVaultState(), readLastPrice().catch(() => null)
       ]);
       return json({
-        system: "Sentinel trio #5 (live)",
+        system: "Sentinel — the live system (per-user flagship)",
         read_at: new Date().toISOString(),
         brain: { ...brain, ...(lastPrice || { last_price_chainlink_eth_usd: null }) },
         ...vaultDesk,
@@ -312,7 +331,7 @@ server.tool(
 
 server.tool(
   "sentinel_events",
-  "Most recent events of the live Sentinel trio #5 across both chains, newest first: prices ingested, decisions (with model scores), callbacks requested, TRIM suppressions, re-risk episodes, and the vault's protection/de-risk/re-risk executions. Each event carries its explorer transaction link.",
+  "Most recent events of the Sentinel live system across both chains, newest first: prices ingested, decisions (with model scores), callbacks requested, TRIM suppressions, re-risk episodes, the vault's protection/de-risk/re-risk executions, and user deposits (shares minted) and redemptions. Each event carries its explorer transaction link.",
   { limit: z.number().int().min(1).max(40).optional().describe("How many events to return (default 14, max 40)") },
   async ({ limit }) => {
     try {
@@ -322,9 +341,49 @@ server.tool(
   }
 );
 
+/* Expected shares for a deposit, mirroring SentinelVaultV5's own math:
+ * first deposit mints 1:1; later deposits mint floor(amount * totalShares /
+ * poolRiskEq) with the safe leg valued at the desk's reference price
+ * (rounded up, against the depositor). Returns null when the vault would
+ * revert (no reference price for a mixed pool). Both pool assets are
+ * 18-decimal as deployed. */
+async function expectedShares(amount) {
+  const [tsHex, mrHex, msHex] = await Promise.all([
+    call(BASE_RPCS_CALL, V5, SEL.totalShares),
+    call(BASE_RPCS_CALL, V5, SEL.managedRisk),
+    call(BASE_RPCS_CALL, V5, SEL.managedSafe)
+  ]);
+  const totalShares = U(tsHex), managedRisk = U(mrHex), managedSafe = U(msHex);
+  if (totalShares === 0n) return amount;
+  let poolRiskEq = managedRisk;
+  if (managedSafe > 0n) {
+    const src = "0x" + (await call(BASE_RPCS_CALL, S5, SEL.priceSource)).slice(-40);
+    const price = U(await call(BASE_RPCS_CALL, src, SEL.latestPrice + padAddr(WETH)));
+    if (price === 0n) return null;
+    const denom = price * 10n ** 18n;
+    const safeEq = (managedSafe * 10n ** 18n * 10n ** 18n + denom - 1n) / denom;
+    poolRiskEq = managedRisk + safeEq;
+  }
+  if (poolRiskEq === 0n) return null;
+  return (amount * totalShares) / poolRiskEq;
+}
+
+async function readUserShares(user) {
+  const [sharesHex, claimHex] = await Promise.all([
+    call(BASE_RPCS_CALL, V5, SEL.sharesOf + padAddr(user)),
+    call(BASE_RPCS_CALL, V5, SEL.claimOf + padAddr(user))
+  ]);
+  const cw = claimHex.slice(2).padStart(128, "0");
+  return {
+    shares: U(sharesHex),
+    claimRisk: BigInt("0x" + cw.slice(0, 64)),
+    claimSafe: BigInt("0x" + cw.slice(64, 128))
+  };
+}
+
 server.tool(
   "sentinel_prepare_deposit",
-  "Prepare the unsigned transactions for depositing test ETH into Sentinel's guarded vault on Base Sepolia: (1) wrap — only the WETH shortfall, computed from the sender's live WETH balance; (2) approve — exact amount, skipped if the vault's allowance already suffices; (3) deposit into the shared guarded position. Returns {to, value, data} per step in order. The server NEVER signs and NEVER sends — sign and broadcast with your own wallet. Honest limits: testnet only; deposits join ONE shared position (no per-user accounting); withdrawals are owner-only in this demo, so test WETH you deposit cannot be withdrawn by you.",
+  "Prepare the unsigned transactions for depositing test ETH into Sentinel's per-user guarded vault on Base Sepolia: (1) wrap — only the WETH shortfall, computed from the sender's live WETH balance; (2) approve — exact amount, skipped if the vault's allowance already suffices; (3) deposit — which MINTS SHARES in the sender's name. The response reports the sender's current shares and claim, plus the shares this deposit is expected to mint (computed from live pool state with the vault's own formula). Shares are redeemable at any time for the holder's pro-rata slice of both pool assets (WETH + mock USDC). Returns {to, value, data} per step in order. The server NEVER signs and NEVER sends — sign and broadcast with your own wallet. Honest limits: testnet only; the guard acts on the whole pool at once, so every holder shares its decisions pro-rata; the safe asset is a mock token.",
   {
     sender: z.string().regex(/^0x[0-9a-fA-F]{40}$/).describe("Your wallet address on Base Sepolia (the future deposit signer)"),
     amount_eth: z.string().describe("Deposit amount as a decimal ETH string, e.g. \"0.0001\"")
@@ -334,12 +393,16 @@ server.tool(
       const amount = parseEther(amount_eth);
       if (amount <= 0n) throw new Error("amount must be greater than zero");
       const from = sender;
-      const [ethBalHex, wethBalHex, allowHex] = await Promise.all([
+      const [ethBalHex, wethBalHex, allowHex, userShares, minted] = await Promise.all([
         getBalance(BASE_RPCS_CALL, from),
         call(BASE_RPCS_CALL, WETH, SEL.balanceOf + padAddr(from)),
-        call(BASE_RPCS_CALL, WETH, SEL.allowance + padAddr(from) + padAddr(V5))
+        call(BASE_RPCS_CALL, WETH, SEL.allowance + padAddr(from) + padAddr(V5)),
+        readUserShares(from),
+        expectedShares(amount)
       ]);
       const ethBal = U(ethBalHex), wethBal = U(wethBalHex), allowance = U(allowHex);
+      if (minted === null) throw new Error("the vault cannot value its safe leg right now (no reference price) — a deposit into the mixed pool would revert; try again later");
+      if (minted === 0n) throw new Error("this amount is dust at the pool's current share price — it would mint 0 shares and the vault would revert; deposit more");
       const transactions = [];
       const warnings = [];
       const shortfall = amount > wethBal ? amount - wethBal : 0n;
@@ -362,7 +425,7 @@ server.tool(
       }
       transactions.push({
         step: transactions.length + 1, action: "deposit",
-        description: "Deposit " + fmtTok(amount, "WETH") + " into the shared guarded position",
+        description: "Deposit " + fmtTok(amount, "WETH") + " into the per-user pool — mints about " + fmtTok(minted, "shares") + " in the sender's name",
         chain_id: BASE_CHAIN_ID, to: V5, value: "0", value_hex: "0x0", data: SEL.vaultDeposit + padUint(amount)
       });
       return json({
@@ -376,28 +439,38 @@ server.tool(
           weth: fmtTok(wethBal, "WETH"), weth_wei: wethBal.toString(),
           vault_allowance_weth: fmtTok(allowance, "WETH"), vault_allowance_weth_wei: allowance.toString()
         },
+        sender_shares_now: {
+          shares: fmtTok(userShares.shares, "shares"), shares_raw: userShares.shares.toString(),
+          claim_weth: fmtTok(userShares.claimRisk, "WETH"), claim_weth_wei: userShares.claimRisk.toString(),
+          claim_musdc: fmtTok(userShares.claimSafe, "mUSDC"), claim_musdc_wei: userShares.claimSafe.toString()
+        },
+        deposit_returns: {
+          expected_shares_minted: fmtTok(minted, "shares"), expected_shares_minted_raw: minted.toString(),
+          expected_shares_after: fmtTok(userShares.shares + minted, "shares"),
+          note: "Computed from live pool state at call time with the vault's own formula; the SharesMinted event of the deposit transaction is authoritative. Shares redeem at any time for your pro-rata slice of both pool assets."
+        },
         skipped: [
           ...(shortfall === 0n ? ["wrap — sender already holds enough WETH"] : []),
           ...(allowance >= amount ? ["approve — the vault already has enough allowance"] : [])
         ],
         transactions,
         warnings,
-        note: "Unsigned transactions, in execution order. Sign and broadcast them yourself, waiting for each receipt before sending the next. This server holds no keys and sends nothing. Testnet only: deposits join one shared position and withdrawals are owner-only in this demo."
+        note: "Unsigned transactions, in execution order. Sign and broadcast them yourself, waiting for each receipt before sending the next. This server holds no keys and sends nothing. Testnet only: the deposit mints shares in your name in the per-user pool, redeemable at any time for your slice of both pool assets."
       });
     } catch (e) { return fail(e); }
   }
 );
 
 const CONTRACTS = [
-  { name: "SentinelReactiveV5 — the brain (trio #5)", chain: "Reactive Lasna testnet", chain_id: 5318007, address: R5, explorer: REACTSCAN },
-  { name: "SentinelVaultV4 — the vault (trio #5)", chain: "Base Sepolia", chain_id: BASE_CHAIN_ID, address: V5, explorer: BASESCAN },
-  { name: "SentinelSwapV2 — the swap desk (trio #5)", chain: "Base Sepolia", chain_id: BASE_CHAIN_ID, address: S5, explorer: BASESCAN },
+  { name: "SentinelReactiveV5 — the brain (live system)", chain: "Reactive Lasna testnet", chain_id: 5318007, address: R5, explorer: REACTSCAN },
+  { name: "SentinelVaultV5 — the per-user vault (live system)", chain: "Base Sepolia", chain_id: BASE_CHAIN_ID, address: V5, explorer: BASESCAN },
+  { name: "SentinelSwapV2 — the swap desk (live system)", chain: "Base Sepolia", chain_id: BASE_CHAIN_ID, address: S5, explorer: BASESCAN },
   { name: "SentinelReactiveV5 — rehearsal brain (#5R)", chain: "Reactive Lasna testnet", chain_id: 5318007, address: R5R, explorer: REACTSCAN },
   { name: "SentinelVaultV4 — rehearsal vault (#5R)", chain: "Base Sepolia", chain_id: BASE_CHAIN_ID, address: V5R, explorer: BASESCAN }
 ];
 server.tool(
   "sentinel_verify",
-  "The five Sentinel trio #5 / rehearsal contracts with Sourcify lookup and block-explorer links. Every contract is verified on Sourcify with an exact match — the code you read is the code that runs.",
+  "The five Sentinel live-system / rehearsal contracts with Sourcify lookup and block-explorer links. Every contract is verified on Sourcify with an exact match — the code you read is the code that runs.",
   {},
   async () => json({
     contracts: CONTRACTS.map(c => ({

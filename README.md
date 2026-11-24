@@ -13,10 +13,11 @@ human watching charts at 3 a.m.
 | 🎥 **Demo video** | https://www.youtube.com/watch?v=zXZDM-lRKeY |
 | 🏛️ **DoraHacks build** | https://dorahacks.io/build/51122 |
 | 🔎 **Live proof** | https://badutitem.github.io/sentinel-reactive/ — every number on this page, read live from the contracts |
-| 🧪 **Demo app** | https://badutitem.github.io/sentinel-reactive/app.html — the demo shell, opened step by step: step 1 (wallet connect on Base Sepolia, your balances + the live guarded position in your own browser) and step 2 (wrap test ETH → approve → deposit WETH into the guarded vault) are live; deposits join one shared position and withdrawals are owner-only in this demo — the page says so before the deposit button; the test-mUSDC claim step stays blocked by the token itself (mint is owner-only, no public faucet) |
+| 🧪 **Demo app** | https://badutitem.github.io/sentinel-reactive/app.html — the demo shell, opened step by step: step 1 (wallet connect on Base Sepolia, your balances + the live guarded position in your own browser), step 2 (wrap test ETH → approve → deposit WETH into the guarded vault) and step 3 (your shares, your claim on the pool, redeem part or all of it whenever you like) are live; the vault keeps **per-user share accounting** — a deposit mints shares in your name and redemption pays your own slice of the pool — the page says exactly how it works before the deposit button; the test-mUSDC claim step stays blocked by the token itself (mint is owner-only, no public faucet) |
 | 🎯 **Model accuracy** | **97.47%** on held-out series (shipped integer model; EXIT calls 100%) |
 | ⚡ **Firing loop** | **≈ 2 s** end-to-end (origin → reactive → callback), proven live on testnet |
-| 🧪 **Tests** | **144/144** Foundry tests pass, including exact-logit pins, a full-loop end-to-end suite, the real-asset vault suite, the Chainlink adapter suite, the model-v2 suite (bit-exact feature/logit parity against the training mirror), an adversarial suite (stale feed, whipsaw, replay, slow-grind and re-arm behaviour — see EVIDENCE.md), the trio #4 repair suites (replay deduplication, TRIM suppression, re-pinned adversarial cases — see TRIO4.md) and the trio #5 re-risk suites (two-tranche buy-back — see TRIO5.md) |
+| 🧪 **Tests** | **165/165** Foundry tests pass, including exact-logit pins, a full-loop end-to-end suite, the real-asset vault suite, the Chainlink adapter suite, the model-v2 suite (bit-exact feature/logit parity against the training mirror), an adversarial suite (stale feed, whipsaw, replay, slow-grind and re-arm behaviour — see EVIDENCE.md), the trio #4 repair suites (replay deduplication, TRIM suppression, re-pinned adversarial cases — see TRIO4.md), the trio #5 re-risk suites (two-tranche buy-back — see TRIO5.md) and the per-user pooled-vault suite (share accounting, donation-neutral pricing, exact reconciliation — see VAULTV5-DESIGN.md) |
+| 👥 **Per-user vault** | **The live flagship** — `SentinelVaultV5` pools deposits with per-user share accounting: anyone can deposit WETH for shares and redeem their own pro-rata slice of the pool (WETH + MockUSDC) at any time; the guard acts on the whole pool at once, so every holder shares its decisions pro-rata; the owner's rescue is capped at the surplus above the share-backed totals (see FLAGSHIP-V5.md) |
 | 🏦 **Vault** | **Real ERC20 position** — `SentinelVaultV2` holds WETH on Base Sepolia and de-risks into MockUSDC through `SentinelSwap` (live proof below) |
 | 📡 **Price feed** | **Four live trios** — Demo A on `MockPriceOracle` (deterministic firing proof); Demo B on the real Chainlink ETH/USD feed via `ChainlinkPriceAdapter`, reactive subscribed to WETH; trio #3 runs the anchor-aware **model v2** on the same Chainlink feed; trio #4 adds replay deduplication + TRIM suppression on the same feed, plus its own mock-origin rehearsal trio (see TRIO4.md) |
 | 🧠 **Inference** | **100% on-chain** — an MLP forward pass in Solidity fixed point, inside the reactive contract |
@@ -29,10 +30,10 @@ live reads the Live Proof page shows in a browser, exposed as tools:
 
 | Tool | What it does |
 |---|---|
-| `sentinel_status` | Live trio #5 state, read at call time: brain fuel, updates ingested, last Chainlink price, anchor, last decision; vault position / safe balance / counts; desk reserves. |
+| `sentinel_status` | Live flagship state, read at call time: brain fuel, updates ingested, last Chainlink price, anchor, last decision; vault position / safe balance / counts; desk reserves. |
 | `sentinel_events` | Recent decision / callback / protection events across both chains, newest first, with explorer links. |
-| `sentinel_prepare_deposit` | Unsigned **wrap → approve → deposit** transactions for a given sender and amount (wrap covers only the WETH shortfall; approve is skipped when allowance suffices) — the agent signs with its **own** wallet. |
-| `sentinel_verify` | The five contracts with Sourcify + explorer links. |
+| `sentinel_prepare_deposit` | Unsigned **wrap → approve → deposit** transactions for a given sender and amount (wrap covers only the WETH shortfall; approve is skipped when allowance suffices) — the agent signs with its **own** wallet. The deposit mints shares in the sender's name; the response reports the sender's resulting share balance and claim. |
+| `sentinel_verify` | The five live-system / rehearsal contracts with Sourcify + explorer links. |
 
 Run it (Node.js ≥ 18, stdio transport):
 
@@ -53,11 +54,13 @@ cd agent && npm install && node server.mjs
 
 Machine-readable manifest: https://badutitem.github.io/sentinel-reactive/agent.json
 
-**Honest limits:** testnet only; deposits join **one shared position** (no
-per-user accounting); withdrawals are **owner-only**, so deposited test WETH
-cannot be withdrawn by the depositor; the safe asset is a mock token; and the
-server **holds no keys and never sends transactions** — it only reads chains
-and prepares calldata. Details: [`agent/README.md`](agent/README.md).
+**Honest limits:** testnet only; deposits mint **shares in the depositor's
+name** (per-user accounting), and any holder can redeem their own shares at
+any time for their pro-rata slice of both pool assets — the guard acts on
+the whole pool at once, so all holders share its decisions; the safe asset
+is a mock token; and the server **holds no keys and never sends
+transactions** — it only reads chains and prepares calldata. Details:
+[`agent/README.md`](agent/README.md).
 
 ## Why
 
@@ -148,6 +151,12 @@ accepts logs from the system contract (`onlySystem`).
 | `src/SentinelReactiveV2.sol` | Lasna | Model-v2 reactive (phase 3): 7 features (adds anchor drawdown), 7 → 12 → 3 inference in `react()`, cooldown fired-state reset on EXIT |
 | `src/model/SentinelModelV2.sol` | (library) | Fixed-point forward pass for the v2 network |
 | `src/model/SentinelWeightsV2.sol` | (library) | Quantized v2 weights — **generated by `tools/train.py` (v2 path), do not hand-edit** |
+| `src/SentinelReactiveV3.sol` | Lasna | Trio #4 reactive: V2 body + replay deduplication + TRIM suppression (see TRIO4.md) |
+| `src/SentinelReactiveV5.sol` | Lasna | Trio #5 / flagship reactive: V3 body + the variant-B two-tranche re-risk episode machine (see TRIO5.md) |
+| `src/SentinelSwapV2.sol` | Base Sepolia | Two-way desk: de-risk sells and re-risk buy-backs, partial fills, priced from the set's price source |
+| `src/SentinelVaultV3.sol` | Base Sepolia | Single-shot re-risk vault — the evaluated-and-replaced candidate (see RERISK-VARIANTS.md) |
+| `src/SentinelVaultV4.sol` | Base Sepolia | Trio #5 vault: variant-B two-tranche re-risk callbacks on one shared position |
+| `src/SentinelVaultV5.sol` | Base Sepolia | **Live flagship vault**: per-user pooled shares over managed totals — donation-neutral pricing, redeem any time, owner rescue capped at surplus (see VAULTV5-DESIGN.md) |
 
 ## Live proof (testnet, 2026-11-13)
 
@@ -460,6 +469,39 @@ emissions ($1,803.58151417; the feed was quiet — two were heartbeat
 re-emissions of the same round), HOLD in warm-up, and stands at
 1.0758959 lREACT after a top-up.
 
+**This set is now the previous generation.** It stays live and
+untouched; the live flagship below reuses the same brain and desk
+code with the per-user vault.
+
+### The per-user flagship — the live system (2026-11-25)
+
+Full record: [FLAGSHIP-V5.md](FLAGSHIP-V5.md); design:
+[VAULTV5-DESIGN.md](VAULTV5-DESIGN.md); on-chain multi-user rehearsal
+of this exact vault code, reconciled to the wei:
+[VAULTV5-REHEARSAL.md](VAULTV5-REHEARSAL.md). The one change is who
+owns the position: `SentinelVaultV5` turns the vault into a pool with
+**per-user share accounting**. Anyone can deposit WETH through the
+public flow and receives shares; anyone can redeem their shares at
+any time for their pro-rata slice of both pool legs (WETH +
+MockUSDC). Share pricing runs off internal managed totals, never raw
+balances, so a direct transfer to the vault (a "donation") cannot
+move any claim — and the owner's rescue is capped at exactly that
+surplus. The guard still acts on the whole pool at once; every
+holder shares the same decisions pro-rata.
+
+| Contract | Chain | Address | Deploy tx |
+|----------|-------|---------|-----------|
+| `SentinelReactiveV5` (flagship) | Lasna (5318007) | `0x37EeF5e3179E55c0e96E1528180B55Fa20DC150B` | `0x38cd921ef3bb091803fa763014800e2c5973d9b5efe423c9d865def5774c52d7` |
+| `SentinelSwapV2` (flagship) | Base Sepolia (84532) | `0x17700999733F766968EA252D5a17ac39F96F2C28` | `0x5966d9ad15f5cd5e76efdfe6c4f79121915ae7d71a1a9d628b376fa1461dda63` |
+| `SentinelVaultV5` (flagship) | Base Sepolia (84532) | `0x108513e6439664fdeE9050e1ccc208e8c1b61441` | `0xc2c4b6b1c26aa220daf0c46ec8f5ceceaebf3eb6ce0915de37949ec8a4389117` |
+
+All **Sourcify-verified (exact match)**. The owner seeded the pool
+with **0.002 WETH** through the public flow (wrap → approve →
+deposit), receiving exactly 1:1 shares as first depositor. In its
+first live window the brain ingested three real Chainlink emissions
+($1,682.55553774 twice, then $1,679.60422012), HOLD in warm-up, and
+stands at 1.0613437 lREACT; the desk holds its 1,000 MockUSDC seed.
+
 ## Build & test
 
 Requires [Foundry](https://getfoundry.sh) (solc 0.8.29). Dependencies
@@ -467,7 +509,7 @@ Requires [Foundry](https://getfoundry.sh) (solc 0.8.29). Dependencies
 
 ```bash
 forge build
-forge test        # 144 tests, 23 suites
+forge test        # 165 tests, 24 suites
 ```
 
 | Suite | Covers |
@@ -492,6 +534,7 @@ forge test        # 144 tests, 23 suites
 | `SentinelReactiveV5.t.sol` (11) | Variant-B episode machine: tranche 1 on the reclaim with the episode staying open; tranche 2 on the new anchor high; pre-minimum cancel preserved; the succ_V ordering case (tranche 1 fires on the above-anchor print V1 cancelled on); EXIT after a completed re-risk opens a fresh episode |
 | `SentinelReactiveV5EndToEnd.t.sol` (1) | Full two-episode B cycle: TRIM → EXIT → tranche 1 → tranche 2 → EXIT → tranche 1 of the new episode, desk-exact throughout |
 | `SentinelAdversarialV5.t.sol` (1) | Square wave under B: 3 re-risk events, all tranche 1, 0 tranche 2 (the wave's reclaim legs never print a new anchor high) inside the same 11 callbacks |
+| `SentinelVaultV5.t.sol` (21) | Per-user pooled vault: multi-user deposits at different times/prices, basket-share pricing off managed totals, donation neutrality + inflation-attack replay, TRIM/EXIT/RERISK under pooling, partial fills, mid-episode and withdraw-all redemption, exact wei reconciliation incl. a 256-run fuzz, surplus-capped owner rescue, callback-guard parity with V4 |
 
 ## Limitations (honest list)
 

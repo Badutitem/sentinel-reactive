@@ -19,10 +19,10 @@ own wallet.
 
 | Tool | What it does |
 |---|---|
-| `sentinel_status` | Live trio #5 state, read at call time: brain fuel (lREACT), price updates ingested, last Chainlink price, anchor, last decision; vault position / safe balance / closed / protection + re-risk counts / billing balance; swap desk reserves. |
-| `sentinel_events` | Recent decision, callback and protection events across both chains, newest first, each with its explorer transaction link. Optional `limit` (default 14, max 40). |
-| `sentinel_prepare_deposit` | Given a sender address and an ETH amount, returns the unsigned transactions — in order — for **wrap** (only the WETH shortfall, from the sender's live balances), **approve** (exact amount, skipped if allowance suffices) and **deposit**. Sign and broadcast them yourself, waiting for each receipt. |
-| `sentinel_verify` | The five trio #5 / rehearsal contracts with Sourcify lookup and explorer links (all Sourcify exact-match). |
+| `sentinel_status` | Live flagship state, read at call time: brain fuel (lREACT), price updates ingested, last Chainlink price, anchor, last decision; per-user vault position / safe balance / total shares outstanding / closed / protection + re-risk counts / billing balance; swap desk reserves. |
+| `sentinel_events` | Recent decision, callback, protection, deposit (shares minted) and redemption events across both chains, newest first, each with its explorer transaction link. Optional `limit` (default 14, max 40). |
+| `sentinel_prepare_deposit` | Given a sender address and an ETH amount, returns the unsigned transactions — in order — for **wrap** (only the WETH shortfall, from the sender's live balances), **approve** (exact amount, skipped if allowance suffices) and **deposit**. The deposit **mints shares in the sender's name**; the response reports the sender's current shares + claim and the shares the deposit is expected to mint. Sign and broadcast them yourself, waiting for each receipt. |
+| `sentinel_verify` | The five live-system / rehearsal contracts with Sourcify lookup and explorer links (all Sourcify exact-match). |
 
 ## Install & run
 
@@ -72,10 +72,15 @@ cast send <to> --data <data> --value <value> --private-key <YOUR_KEY> --rpc-url 
 ## Honest limits
 
 - **Testnet only.** Lasna + Base Sepolia. Nothing here is real money.
-- **One shared position.** Deposits join the single vault position — there is
-  no per-user accounting in this demo.
-- **Withdrawals are owner-only.** Test WETH you deposit cannot be withdrawn by
-  you; only the demo operator can take WETH back out of the vault.
+- **Per-user shares.** The vault (`SentinelVaultV5`) keeps per-user share
+  accounting: a deposit mints shares in your name, and you can redeem them
+  at any time for your pro-rata slice of both pool assets (WETH + MockUSDC).
+  The owner's rescue is capped at the surplus above the share-backed
+  totals — user backing cannot be skimmed.
+- **One guard for the whole pool.** The brain's TRIM / EXIT / re-risk
+  actions move the entire pool at once, so every holder shares the same
+  decisions pro-rata; what a redemption pays depends on the pool's current
+  mix, not only on what you put in.
 - **The safe asset is a mock.** The vault de-risks into MockUSDC (mint is
   owner-only; there is no public faucet).
 - **No keys, no sending.** This server cannot move funds, ever — it only

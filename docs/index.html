@@ -83,21 +83,24 @@
   <b>live from the contracts</b> by your own browser as you open it — nothing here is typed in by hand.</div>
   <div class="bar">
     <button id="refresh">↻ Refresh</button>
-    <a class="pill" href="app.html" style="text-decoration:none"><b>▶ Demo app — step 1: connect a wallet</b></a>
+    <a class="pill" href="app.html" style="text-decoration:none"><b>▶ Demo app — connect, deposit, redeem your share</b></a>
     <span class="pill">Last refreshed: <b id="refreshed">—</b></span>
     <span class="pill">Status: <b id="loadstate"><span class="spin"></span> reading the chains…</b></span>
   </div>
 </header>
 
-<h2>Trio #5 — the live system</h2>
+<h2>The live system</h2>
 <p class="h2sub">The current release. The brain runs on the Reactive Lasna testnet; the vault it
-protects sits on Base Sepolia. Prices come from the real Chainlink ETH/USD feed.</p>
+protects sits on Base Sepolia. Prices come from the real Chainlink ETH/USD feed. The vault is a
+<b>per-user pool</b>: anyone can deposit WETH for shares and redeem their own slice at any time —
+try it in the <a href="app.html">demo app</a>. The previous flagship set (the trio #5 contracts)
+stays live and untouched as the previous generation.</p>
 
 <div class="grid">
   <div class="card">
     <h3>The brain — SentinelReactiveV5</h3>
     <p class="role">Reactive contract · Lasna · decides HOLD / TRIM / EXIT and can buy back in (re-risk)</p>
-    <div class="addr">0x0Fdab4F59e877B2f9f695Bd285b72831336caCd4</div>
+    <div class="addr">0x37EeF5e3179E55c0e96E1528180B55Fa20DC150B</div>
     <table class="kv">
       <tr><td class="k">Fuel (lREACT balance)</td><td class="v" data-f="r5-balance">…</td></tr>
       <tr><td class="k">Price updates ingested</td><td class="v" data-f="r5-updates">…</td></tr>
@@ -111,12 +114,13 @@ protects sits on Base Sepolia. Prices come from the real Chainlink ETH/USD feed.
   </div>
 
   <div class="card">
-    <h3>The vault — SentinelVaultV4</h3>
-    <p class="role">Destination contract · Base Sepolia · holds the position, obeys the brain's callbacks</p>
-    <div class="addr">0xb13BF7Ff153e7f6304735EC4199B006Fd4857Ac9</div>
+    <h3>The vault — SentinelVaultV5</h3>
+    <p class="role">Destination contract · Base Sepolia · per-user pool: holds the position, obeys the brain's callbacks, pays each holder their own slice</p>
+    <div class="addr">0x108513e6439664fdeE9050e1ccc208e8c1b61441</div>
     <table class="kv">
       <tr><td class="k">Position (risk asset, WETH)</td><td class="v" data-f="v5-position">…</td></tr>
       <tr><td class="k">Safe balance (mock USDC, from de-risking)</td><td class="v" data-f="v5-safe">…</td></tr>
+      <tr><td class="k">Shares outstanding (all holders)</td><td class="v" data-f="v5-shares">…</td></tr>
       <tr><td class="k">Position closed by an EXIT?</td><td class="v" data-f="v5-closed">…</td></tr>
       <tr><td class="k">Protection callbacks executed</td><td class="v" data-f="v5-prot">…</td></tr>
       <tr><td class="k">Re-risk callbacks executed</td><td class="v" data-f="v5-rerisk">…</td></tr>
@@ -128,9 +132,10 @@ protects sits on Base Sepolia. Prices come from the real Chainlink ETH/USD feed.
 </div>
 
 <h2>Event feed — what the live system has done</h2>
-<p class="h2sub">Decisions and callbacks from the trio #5 contracts, newest first. Every row links to
-its transaction — check it yourself. The main trio has been live since 19 Nov 2026 on a quiet feed,
-so a short feed is the honest picture: it ingests real prices and holds.</p>
+<p class="h2sub">Decisions, callbacks, deposits and redemptions from the live system's contracts,
+newest first. Every row links to its transaction — check it yourself. The live system has been
+live since 25 Nov 2026 on a quiet feed, so a short feed is the honest picture: it ingests real
+prices and holds.</p>
 <div class="feed" id="feed"><div class="ev INFO"><span class="spin"></span> Reading events from Lasna and Base Sepolia…</div></div>
 
 <h2>Proven cycle — the rehearsal trio</h2>
@@ -162,7 +167,7 @@ change — they were measured once, in testing, and are written here exactly as 
       <tr><td class="k">Weights the live trios run</td><td class="v">model v2</td></tr>
       <tr><td class="k">Held-out accuracy (6,001 unseen windows)</td><td class="v">95.41%</td></tr>
       <tr><td class="k">Per class — HOLD / TRIM / EXIT</td><td class="v">93.8% / 95.6% / 99.4%</td></tr>
-      <tr><td class="k">Contract test suite</td><td class="v">144/144 passing</td></tr>
+      <tr><td class="k">Contract test suite</td><td class="v">165/165 passing</td></tr>
     </table>
     <p style="color:var(--dim);font-size:14px;margin:12px 0 0">Accuracy here means agreement with the
     hand-written stop-loss policy that labelled the training data, on synthetic price series the
@@ -209,11 +214,11 @@ const BASE_RPCS_LOGS = ["https://base-sepolia-rpc.publicnode.com","https://base-
 const REACTSCAN = "https://lasna.reactscan.net";
 const BASESCAN  = "https://sepolia.basescan.org";
 
-const R5  = "0x0Fdab4F59e877B2f9f695Bd285b72831336caCd4"; // SentinelReactiveV5, Lasna
-const R5_DEPLOY = 8726755;
-const V5  = "0xb13BF7Ff153e7f6304735EC4199B006Fd4857Ac9"; // SentinelVaultV4, Base Sepolia
-const V5_DEPLOY = 60811963;
-const S5  = "0x80c3BF688b08ac03D3aE7396cDd96770F7ce572a"; // SentinelSwapV2, Base Sepolia
+const R5  = "0x37EeF5e3179E55c0e96E1528180B55Fa20DC150B"; // SentinelReactiveV5 — flagship brain, Lasna
+const R5_DEPLOY = 9172277;
+const V5  = "0x108513e6439664fdeE9050e1ccc208e8c1b61441"; // SentinelVaultV5 — flagship vault, Base Sepolia
+const V5_DEPLOY = 63196568;
+const S5  = "0x17700999733F766968EA252D5a17ac39F96F2C28"; // SentinelSwapV2 — flagship desk, Base Sepolia
 const R5R = "0x1123b38e933D0a87D5846456c1ed6E94c936e3e1"; // rehearsal reactive, Lasna
 const V5R = "0x242719F815141ad08286f29a23025b9244efd60e"; // rehearsal vault, Base Sepolia
 
@@ -221,7 +226,8 @@ const SEL = { updates:"0x68a82ef6", anchorPeak:"0x4e801ffc", lastAction:"0x89f71
   duplicatesIgnored:"0x58aec1ac", episodeActive:"0xccecbdaf", episodeAnchor:"0x8b169dac",
   tranche1Fired:"0x7862b6ee", tranche2Fired:"0x99157f7d", reriskCount:"0x8beaf925",
   positionSize:"0x84f523ad", safeBalance:"0x88780b8e", closed:"0x597e1fb5",
-  protectionCount:"0x9b02c402", reserve:"0xcd3293de", riskReserve:"0x44c5999e" };
+  protectionCount:"0x9b02c402", reserve:"0xcd3293de", riskReserve:"0x44c5999e",
+  totalShares:"0x3a98ef39" };
 const TOPIC = {
   PriceSeen:"0xd835ba2bc227150e613ee209169441eaa417f430d04632345983d855a95ba9a6",
   Decision:"0x953c77171e42ede9b4af2df0081e1f06bf35501b207993ce9340902faa40e3a6",
@@ -231,7 +237,9 @@ const TOPIC = {
   EpisodeCancelled:"0xc6e9447f7622be80757ab435a291ad85f0dc7cbae9d1186719522956eedb6442",
   ProtectionExecuted:"0x384900fde4c9615d84b610a4889a0568ca153695045bc2a183a3c21950ada34e",
   DeRisked:"0x2daf4dea00efb60715717c9623908d454c5e5d845a7196b32e9f1384426bec50",
-  ReRisked:"0x9fcf1dda8d7e7cf9836744c31ed05f39edf04fa0cd6e5702fe58a9345a1d9af9" };
+  ReRisked:"0x9fcf1dda8d7e7cf9836744c31ed05f39edf04fa0cd6e5702fe58a9345a1d9af9",
+  SharesMinted:"0xd5103f333769455df788908e17b0f6f83838ebeae2cd1ed6f23ec20dad88c9a3",
+  SharesRedeemed:"0xc2c19174f35fcb7370641b55802c8f596e4827983eefbb49c33373ac0cad5a1d" };
 const ACTIONS = ["HOLD","TRIM","EXIT","RERISK","RERISK_FINAL"];
 const ACTION_LABEL = {0:"HOLD",1:"TRIM — sell half",2:"EXIT — sell all",3:"RERISK — buy back, tranche 1",4:"RERISK_FINAL — buy back, tranche 2"};
 
@@ -303,7 +311,7 @@ async function scanLogs(urls, address, topics, fromBlock, chunk){
   return out;
 }
 
-/* ---------- live state: trio #5 main ---------- */
+/* ---------- live state: the flagship set ---------- */
 async function loadMain(){
   fill("r5-balance", balance(LASNA_RPCS, R5), v => fmtTok(U(v), "lREACT"));
   fill("r5-updates", call(LASNA_RPCS, R5, SEL.updates), v => U(v).toString());
@@ -323,6 +331,7 @@ async function loadMain(){
 
   fill("v5-position", call(BASE_RPCS_CALL, V5, SEL.positionSize), v => fmtTok(U(v), "WETH"));
   fill("v5-safe",     call(BASE_RPCS_CALL, V5, SEL.safeBalance),  v => fmtTok(U(v), "mUSDC"));
+  fill("v5-shares",   call(BASE_RPCS_CALL, V5, SEL.totalShares), v => fmtTok(U(v), "shares"));
   fill("v5-closed",   call(BASE_RPCS_CALL, V5, SEL.closed), v => U(v)===1n ? "yes" : "no — position open");
   fill("v5-prot",     call(BASE_RPCS_CALL, V5, SEL.protectionCount), v => U(v).toString());
   fill("v5-rerisk",   call(BASE_RPCS_CALL, V5, SEL.reriskCount), v => U(v).toString());
@@ -340,7 +349,7 @@ async function loadRehearsalState(){
   fill("v5r-safe",   call(BASE_RPCS_CALL, V5R, SEL.safeBalance), v => (Number(U(v))/1e18).toFixed(6));
 }
 
-/* ---------- event feed: trio #5 main ---------- */
+/* ---------- event feed: the flagship set ---------- */
 function evRow(cls, what, detail, tsText, explorer, tx){
   return '<div class="ev '+cls+'"><span class="what">'+what+'</span> — '+detail+
     '<br><span class="t">'+tsText+'</span> · <a href="'+explorer+'/tx/'+tx+'" target="_blank" rel="noopener">tx '+short(tx)+'</a></div>';
@@ -382,12 +391,17 @@ async function loadFeed(){
     else setField("r5-lastprice", UNAVAIL);
   }catch(e){ setField("r5-lastprice", UNAVAIL); }
   try{
-    const vTopics = [TOPIC.ProtectionExecuted, TOPIC.DeRisked, TOPIC.ReRisked];
+    const vTopics = [TOPIC.ProtectionExecuted, TOPIC.DeRisked, TOPIC.ReRisked, TOPIC.SharesMinted, TOPIC.SharesRedeemed];
     const logs = await scanLogs(BASE_RPCS_LOGS, V5, vTopics, V5_DEPLOY, 50000);
     for(const l of logs){
       const t0 = l.topics[0], w = words(l.data), blk = parseInt(l.blockNumber, 16);
       const ts = await getTs(BASE_RPCS_CALL, blk);
-      if(t0 === TOPIC.ProtectionExecuted){
+      if(t0 === TOPIC.SharesMinted){
+        const user = "0x" + l.topics[1].slice(-40);
+        items.push({ts, html: evRow("INFO", "Deposit — shares minted", fmtTok(U(w[0]), "WETH")+" in, "+fmtTok(U(w[1]), "shares")+" to "+user.slice(0,6)+"…"+user.slice(-4), fmtTs(ts), BASESCAN, l.transactionHash)});
+      } else if(t0 === TOPIC.SharesRedeemed){
+        items.push({ts, html: evRow("INFO", "Redeemed", fmtTok(U(w[0]), "shares")+" burned for "+fmtTok(U(w[1]), "WETH")+" + "+fmtTok(U(w[2]), "mUSDC"), fmtTs(ts), BASESCAN, l.transactionHash)});
+      } else if(t0 === TOPIC.ProtectionExecuted){
         const a = Number(U(w[1]));
         items.push({ts, html: evRow(ACTIONS[a], "Vault executed: "+ACTIONS[a], "position "+fmtTok(U(w[2]), "WETH")+" → "+fmtTok(U(w[3]), "WETH"), fmtTs(ts), BASESCAN, l.transactionHash)});
       } else if(t0 === TOPIC.DeRisked){
@@ -428,9 +442,9 @@ document.getElementById("timeline").innerHTML = CYCLE.map(s =>
 
 /* ---------- verify cards ---------- */
 const CONTRACTS = [
-  {name:"SentinelReactiveV5 — the brain (trio #5)", chain:"Lasna · 5318007", addr:R5, explorer:REACTSCAN},
-  {name:"SentinelVaultV4 — the vault (trio #5)", chain:"Base Sepolia · 84532", addr:V5, explorer:BASESCAN},
-  {name:"SentinelSwapV2 — the swap desk (trio #5)", chain:"Base Sepolia · 84532", addr:S5, explorer:BASESCAN},
+  {name:"SentinelReactiveV5 — the brain (live system)", chain:"Lasna · 5318007", addr:R5, explorer:REACTSCAN},
+  {name:"SentinelVaultV5 — the per-user vault (live system)", chain:"Base Sepolia · 84532", addr:V5, explorer:BASESCAN},
+  {name:"SentinelSwapV2 — the swap desk (live system)", chain:"Base Sepolia · 84532", addr:S5, explorer:BASESCAN},
   {name:"SentinelReactiveV5 — rehearsal brain (#5R)", chain:"Lasna · 5318007", addr:R5R, explorer:REACTSCAN},
   {name:"SentinelVaultV4 — rehearsal vault (#5R)", chain:"Base Sepolia · 84532", addr:V5R, explorer:BASESCAN}
 ];

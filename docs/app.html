@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sentinel — Demo app</title>
-<meta name="description" content="Connect a wallet on Base Sepolia testnet and stand inside the Sentinel demo: your own balances, a real test deposit into the guarded vault, and the live position — read from the contracts in your browser.">
+<meta name="description" content="Connect a wallet on Base Sepolia testnet and stand inside the Sentinel demo: your own balances, a real test deposit that mints shares in your name, your live claim on the guarded pool, and redeeming it back — read from the contracts in your browser.">
 <style>
   :root{
     --bg:#0b0e13; --card:#131822; --card2:#0f141d; --line:#232c3d;
@@ -65,9 +65,11 @@
 <header>
   <h1><span class="shield">🛡</span> Sentinel — Demo app</h1>
   <div class="sub">This is the demo you can <b>step into</b>: connect a wallet on the
-  <b>Base Sepolia testnet</b>, wrap a little test ETH and <b>add it to the guarded position</b> —
-  this page reads <b>your own balances</b> and the <b>live position</b> straight from the contracts,
-  the same vault the Sentinel brain watches on the real Chainlink ETH/USD feed.</div>
+  <b>Base Sepolia testnet</b>, wrap a little test ETH and <b>deposit it into the guarded pool</b> —
+  the deposit mints <b>shares in your name</b>, and you can <b>redeem them back out whenever you
+  like</b>. This page reads <b>your own balances, your shares and your claim</b> and the <b>live
+  pool</b> straight from the contracts — the same vault the Sentinel brain watches on the real
+  Chainlink ETH/USD feed.</div>
   <div class="bar">
     <span class="pill">Network: <b>Base Sepolia · 84532 · testnet</b></span>
     <span class="pill">Want the full receipts? <a href="index.html"><b>← Live Proof page</b></a></span>
@@ -77,11 +79,12 @@
 <div class="note">
   <b>Where this demo stands, honestly.</b> The app is being opened up one step at a time, and each
   step ships only after it is proven. <b>Step 1 — wallet connect — is live.</b>
-  <b>Step 2 — deposit — is live too</b>: below, you can wrap test ETH into WETH and deposit it into
-  the guarded vault. Read the three plain facts in the yellow box first — the position is shared
-  and withdrawals are owner-only in this demo. The one step that stays closed is claiming test
-  mock USDC: that token's mint is owner-only, there is <b>no public faucet</b>, so it is blocked
-  by the contract itself. Testnet only: nothing here is real money.
+  <b>Step 2 — deposit — is live.</b> <b>Step 3 — your shares — is live too</b>: the vault keeps
+  per-user share accounting, so a deposit mints shares in your name and step 3 pays them back out,
+  in part or in full, whenever you ask. Read the plain facts in the yellow box first. The one step
+  that stays closed is claiming test mock USDC: that token's mint is owner-only, there is
+  <b>no public faucet</b>, so it is blocked by the contract itself. Testnet only: nothing here is
+  real money.
 </div>
 
 <h2>Step 1 — connect your wallet</h2>
@@ -115,22 +118,29 @@ approve the vault for exactly that amount, then deposit. Each step is a real tes
 signed in your wallet, and the position below updates after every confirmed step.</p>
 
 <div class="warn">
-  <b>Read this before you deposit — three plain facts:</b>
+  <b>Read this before you deposit — plain facts:</b>
   <ul>
-    <li><b>Shared position.</b> This demo vault keeps <b>one shared position for everyone</b>.
-    There is no separate balance in your name, and this page cannot show "your share".</li>
-    <li><b>You cannot withdraw.</b> In this demo, withdrawals are <b>owner-only</b> — only the
-    demo operator can take WETH back out of the vault. Test WETH you deposit stays in the
-    shared position.</li>
+    <li><b>Your own shares.</b> A deposit mints <b>shares in your name</b>. Step 3 below shows
+    your shares and what they would pay out right now, read live from the vault.</li>
+    <li><b>You can take yours back out.</b> Redeem part or all of your shares <b>at any time</b> —
+    no lock, no asking anyone. You are paid your slice of <b>both</b> assets the pool holds at
+    that moment: WETH and mock USDC.</li>
+    <li><b>One guard, shared decisions.</b> The brain protects the <b>whole pool at once</b>.
+    When it de-risks, the pool's mix shifts toward mock USDC; when it buys back, the mix shifts
+    back toward WETH. Your slice follows the same mix as everyone's, in proportion to your
+    shares — so what a redemption pays out depends on what the guard has done, not only on what
+    you put in.</li>
+    <li><b>Mock safe asset.</b> The pool de-risks into <b>MockUSDC</b>, a test token — not real
+    USDC. Its mint is owner-only and there is no public faucet.</li>
     <li><b>Testnet only, worth nothing.</b> The ETH and WETH here are Base Sepolia test money.
     They are worth nothing. This page only works on the testnet — never send real funds.</li>
   </ul>
 </div>
 
 <div class="card">
-  <h3>Deposit into SentinelVaultV4</h3>
-  <p class="role">Destination contract · Base Sepolia · your WETH joins the shared guarded position</p>
-  <div class="addr">0xb13BF7Ff153e7f6304735EC4199B006Fd4857Ac9</div>
+  <h3>Deposit into SentinelVaultV5</h3>
+  <p class="role">Destination contract · Base Sepolia · your WETH buys shares in the guarded pool</p>
+  <div class="addr">0x108513e6439664fdeE9050e1ccc208e8c1b61441</div>
   <div class="row" style="margin-top:14px">
     <label for="d-amount" style="color:var(--dim);font-size:14px">Amount (test ETH)</label>
     <input class="amt" id="d-amount" type="text" inputmode="decimal" placeholder="0.0001" value="0.0001">
@@ -144,26 +154,53 @@ signed in your wallet, and the position below updates after every confirmed step
   </table>
 </div>
 
+<h2>Step 3 — your shares, and taking them back out</h2>
+<p class="h2sub">Your shares are your slice of the pool. The claim below is exactly what redeeming
+all of them would pay you right now — the vault computes it, this page only displays it. Redeeming
+is one transaction, signed in your wallet; part or all, whenever you like.</p>
+
+<div class="card">
+  <h3>Your shares in SentinelVaultV5</h3>
+  <p class="role">Per-user accounting · Base Sepolia · read live for the connected wallet</p>
+  <table class="kv">
+    <tr><td class="k">Your shares</td><td class="v" id="s-shares">—</td></tr>
+    <tr><td class="k">Your claim — WETH leg</td><td class="v" id="s-claim-weth">—</td></tr>
+    <tr><td class="k">Your claim — mock USDC leg</td><td class="v" id="s-claim-musdc">—</td></tr>
+    <tr><td class="k">Pool shares outstanding (everyone)</td><td class="v" id="s-total">—</td></tr>
+  </table>
+  <div class="row" style="margin-top:14px">
+    <label for="r-amount" style="color:var(--dim);font-size:14px">Shares to redeem</label>
+    <input class="amt" id="r-amount" type="text" inputmode="decimal" placeholder="0.0001">
+    <button class="act" id="btn-redeem" disabled>Redeem shares</button>
+    <button class="act alt" id="btn-redeem-all" disabled>Redeem all</button>
+    <button class="act alt" id="btn-refresh-shares" disabled>↻ Refresh shares</button>
+  </div>
+  <table class="kv" style="margin-top:10px">
+    <tr><td class="k">Redeem (burn shares → WETH + mock USDC paid to you)</td><td class="v"><span class="stepstate" id="r-step">waiting</span></td></tr>
+  </table>
+</div>
+
 <h2 style="margin-top:22px">Activity log</h2>
 <div class="log" id="log">Nothing yet. Connect a wallet to start.</div>
 
-<h2>The guarded position — live</h2>
-<p class="h2sub">The live trio #5 position, read from the vault right now — the shared position your
-deposit joins. The brain that guards it lives on the Reactive Lasna testnet; its live state
+<h2>The guarded pool — live</h2>
+<p class="h2sub">The live pool, read from the vault right now — the pool your shares are a slice of.
+The brain that guards it lives on the Reactive Lasna testnet; its live state
 and the full firing proof are on the <a href="index.html">Live Proof page</a>.</p>
 
 <div class="card">
-  <h3>SentinelVaultV4 — the guarded vault</h3>
-  <p class="role">Destination contract · Base Sepolia · holds the position, obeys the brain's callbacks</p>
-  <div class="addr">0xb13BF7Ff153e7f6304735EC4199B006Fd4857Ac9</div>
+  <h3>SentinelVaultV5 — the guarded vault</h3>
+  <p class="role">Destination contract · Base Sepolia · per-user pool, obeys the brain's callbacks</p>
+  <div class="addr">0x108513e6439664fdeE9050e1ccc208e8c1b61441</div>
   <table class="kv">
-    <tr><td class="k">Position (WETH under guard)</td><td class="v" data-f="v-position">…</td></tr>
-    <tr><td class="k">Safe balance (mock USDC, from de-risking)</td><td class="v" data-f="v-safe">…</td></tr>
+    <tr><td class="k">Pool position (WETH under guard)</td><td class="v" data-f="v-position">…</td></tr>
+    <tr><td class="k">Pool safe balance (mock USDC, from de-risking)</td><td class="v" data-f="v-safe">…</td></tr>
+    <tr><td class="k">Shares outstanding (all holders)</td><td class="v" data-f="v-shares">…</td></tr>
     <tr><td class="k">Position closed by an EXIT?</td><td class="v" data-f="v-closed">…</td></tr>
     <tr><td class="k">Protection callbacks executed</td><td class="v" data-f="v-prot">…</td></tr>
     <tr><td class="k">Re-risk callbacks executed</td><td class="v" data-f="v-rerisk">…</td></tr>
   </table>
-  <div class="row"><button class="act alt" id="btn-refresh-vault">↻ Refresh position</button></div>
+  <div class="row"><button class="act alt" id="btn-refresh-vault">↻ Refresh pool</button></div>
 </div>
 
 <footer>
@@ -171,7 +208,7 @@ and the full firing proof are on the <a href="index.html">Live Proof page</a>.</
   <a href="https://dorahacks.io/build/51122" target="_blank" rel="noopener">DoraHacks build #51122</a>
   <a href="https://github.com/Badutitem/sentinel-reactive" target="_blank" rel="noopener">GitHub repo</a>
   <a href="https://www.youtube.com/watch?v=zXZDM-lRKeY" target="_blank" rel="noopener">Demo video (1:41)</a>
-  <span>Demo shell: wallet connect + deposit into the shared position. Testnet only — nothing here is real money.</span>
+  <span>Demo app: wallet connect, per-user deposit, redeem your shares any time. Testnet only — nothing here is real money.</span>
 </footer>
 
 </div>
@@ -183,8 +220,8 @@ const BASESCAN = "https://sepolia.basescan.org";
 const CHAIN_HEX = "0x14a34"; // Base Sepolia, 84532
 
 const WETH  = "0x4200000000000000000000000000000000000006"; // canonical Base WETH
-const MUSDC = "0x96E467Ff7958851d307D28118EBAAD333CAb85B2"; // MockUSDC (trio #5 safe asset)
-const VAULT = "0xb13BF7Ff153e7f6304735EC4199B006Fd4857Ac9"; // SentinelVaultV4 (trio #5)
+const MUSDC = "0x96E467Ff7958851d307D28118EBAAD333CAb85B2"; // MockUSDC (the pool's safe asset, mock)
+const VAULT = "0x108513e6439664fdeE9050e1ccc208e8c1b61441"; // SentinelVaultV5 — the per-user pool (live system)
 
 const SEL = {
   balanceOf:"0x70a08231",
@@ -192,6 +229,8 @@ const SEL = {
   approve:"0x095ea7b3",
   wethDeposit:"0xd0e30db0",
   vaultDeposit:"0xb6b55f25",
+  sharesOf:"0xf5eb42dc", totalShares:"0x3a98ef39", claimOf:"0xfccd7f72",
+  redeem:"0xdb006a75", redeemAll:"0x2f4350c2",
   positionSize:"0x84f523ad", safeBalance:"0x88780b8e", closed:"0x597e1fb5",
   protectionCount:"0x9b02c402", reriskCount:"0x8beaf925"
 };
@@ -298,8 +337,10 @@ async function connect(){
     $("w-addr").textContent = account;
     $("btn-refresh-bal").disabled = false;
     $("btn-deposit").disabled = false;
+    $("btn-refresh-shares").disabled = false;
     log("Wallet connected: " + account + " (" + chainNote + ").");
     await refreshBalances();
+    await refreshShares();
   }catch(e){
     log("Connect failed: " + (e.message || e));
   }
@@ -320,6 +361,79 @@ async function refreshBalances(){
   }catch(e){
     $("w-eth").innerHTML = '<span class="unavail">unavailable</span>';
     log("Balance read failed — the RPC endpoints did not answer. Try Refresh.");
+  }
+}
+
+/* ---------- step 3: your shares + redeem ---------- */
+let myShares = 0n;
+async function refreshShares(){
+  if(!account) return;
+  try{
+    const [sharesHex, claimHex, totalHex] = await Promise.all([
+      call(VAULT, SEL.sharesOf + argAddr(account)),
+      call(VAULT, SEL.claimOf + argAddr(account)),
+      call(VAULT, SEL.totalShares)
+    ]);
+    myShares = U(sharesHex);
+    const cw = claimHex.slice(2).padStart(128, "0");
+    const claimRisk = BigInt("0x" + cw.slice(0, 64));
+    const claimSafe = BigInt("0x" + cw.slice(64, 128));
+    $("s-shares").textContent = fmtTok(myShares, "shares");
+    $("s-claim-weth").textContent = fmtTok(claimRisk, "WETH");
+    $("s-claim-musdc").textContent = fmtTok(claimSafe, "mUSDC");
+    $("s-total").textContent = fmtTok(U(totalHex), "shares");
+    const can = myShares > 0n && !redeeming;
+    $("btn-redeem").disabled = !can;
+    $("btn-redeem-all").disabled = !can;
+    log("Your shares read live: " + fmtTok(myShares, "shares") + " — claim now " +
+      fmtTok(claimRisk, "WETH") + " + " + fmtTok(claimSafe, "mUSDC") + ".");
+  }catch(e){
+    $("s-shares").innerHTML = '<span class="unavail">unavailable</span>';
+    log("Share read failed — the RPC endpoints did not answer. Try Refresh shares.");
+  }
+}
+
+let redeeming = false;
+async function runRedeem(all){
+  if(redeeming) return;
+  if(!account){ log("Connect your wallet first (step 1)."); return; }
+  await refreshShares();
+  if(myShares <= 0n){ log("You hold no shares to redeem."); return; }
+  let shares = myShares;
+  if(!all){
+    shares = parseAmount($("r-amount").value);
+    if(shares === null){
+      log("Enter how many shares to redeem — or use Redeem all.");
+      return;
+    }
+    if(shares > myShares){
+      log("You hold " + fmtTok(myShares, "shares") + " — you cannot redeem more than that.");
+      return;
+    }
+  }
+  redeeming = true;
+  $("btn-redeem").disabled = true;
+  $("btn-redeem-all").disabled = true;
+  setStep("r-step", '<span class="spin"></span> sign the redemption in your wallet…');
+  try{
+    await ensureChain();
+    const h = await sendTx(VAULT, all ? SEL.redeemAll : SEL.redeem + argUint(shares), 0n);
+    setStep("r-step", '<span class="spin"></span> confirming…' + txLink(h));
+    await waitReceipt(h);
+    stepDone("r-step", h);
+    log("Redeemed " + fmtTok(shares, "shares") + " — your WETH + mock USDC slice is in your wallet now.");
+    await refreshBalances();
+    await refreshShares();
+    await refreshVault();
+  }catch(e){
+    const msg = (e && e.code === 4001) ? "you rejected the signature in your wallet" : (e.message || String(e));
+    stepFail("r-step", msg);
+    log("Redeem stopped: " + msg + ".");
+  }finally{
+    redeeming = false;
+    const can = !!account && myShares > 0n;
+    $("btn-redeem").disabled = !can;
+    $("btn-redeem-all").disabled = !can;
   }
 }
 
@@ -363,7 +477,7 @@ async function runDeposit(){
   let stage = "d-step-wrap";
   try{
     await ensureChain();
-    log("Deposit started: " + fmtTok(amt, "ETH") + " into the shared guarded position.");
+    log("Deposit started: " + fmtTok(amt, "ETH") + " into the guarded pool — it mints shares in your name.");
 
     /* 1 · wrap only the shortfall */
     const wethBal = U(await call(WETH, SEL.balanceOf + argAddr(account)));
@@ -403,8 +517,9 @@ async function runDeposit(){
     setStep("d-step-deposit", '<span class="spin"></span> confirming…' + txLink(h));
     await waitReceipt(h);
     stepDone("d-step-deposit", h);
-    log("Deposited " + fmtTok(amt, "WETH") + " into the shared guarded position. It cannot be withdrawn by you — withdrawals are owner-only in this demo (see the yellow box).");
+    log("Deposited " + fmtTok(amt, "WETH") + " into the guarded pool. Your shares are in step 3 below — redeem part or all of them whenever you like.");
     await refreshBalances();
+    await refreshShares();
     await refreshVault();
   }catch(e){
     const msg = (e && e.code === 4001) ? "you rejected the signature in your wallet" : (e.message || String(e));
@@ -427,6 +542,7 @@ async function fill(name, promise, fmt){
 async function refreshVault(){
   fill("v-position", call(VAULT, SEL.positionSize), v => fmtTok(U(v), "WETH"));
   fill("v-safe",     call(VAULT, SEL.safeBalance),  v => fmtTok(U(v), "mUSDC"));
+  fill("v-shares",   call(VAULT, SEL.totalShares), v => fmtTok(U(v), "shares"));
   fill("v-closed",   call(VAULT, SEL.closed), v => U(v)===1n ? "yes" : "no — position open");
   fill("v-prot",     call(VAULT, SEL.protectionCount), v => U(v).toString());
   fill("v-rerisk",   call(VAULT, SEL.reriskCount), v => U(v).toString());
@@ -435,16 +551,25 @@ async function refreshVault(){
 /* ---------- wallet events: handled in place, never a reload ---------- */
 function disconnectWallet(){
   account = null;
+  myShares = 0n;
   $("w-status").textContent = "not connected";
   $("w-addr").textContent = "—";
   $("w-eth").textContent = "—";
   $("w-weth").textContent = "—";
   $("w-musdc").textContent = "—";
+  $("s-shares").textContent = "—";
+  $("s-claim-weth").textContent = "—";
+  $("s-claim-musdc").textContent = "—";
+  $("s-total").textContent = "—";
   $("btn-refresh-bal").disabled = true;
   $("btn-deposit").disabled = true;
+  $("btn-refresh-shares").disabled = true;
+  $("btn-redeem").disabled = true;
+  $("btn-redeem-all").disabled = true;
   setStep("d-step-wrap", "waiting");
   setStep("d-step-approve", "waiting");
   setStep("d-step-deposit", "waiting");
+  setStep("r-step", "waiting");
   log("Wallet disconnected or locked. Connect again to continue.");
 }
 
@@ -455,10 +580,13 @@ async function onChainChanged(chainId){
     if(!depositing) $("btn-deposit").disabled = false;
     log("Network: Base Sepolia — you are on the right chain.");
     await refreshBalances();
+    await refreshShares();
   } else {
     $("w-status").textContent = "wrong network — switch to Base Sepolia";
     $("btn-deposit").disabled = true;
-    log("Network changed to chain " + chainId + " — switch back to Base Sepolia (84532) to deposit.");
+    $("btn-redeem").disabled = true;
+    $("btn-redeem-all").disabled = true;
+    log("Network changed to chain " + chainId + " — switch back to Base Sepolia (84532) to deposit or redeem.");
   }
 }
 
@@ -466,11 +594,16 @@ async function onChainChanged(chainId){
 $("btn-connect").addEventListener("click", connect);
 $("btn-refresh-bal").addEventListener("click", refreshBalances);
 $("btn-deposit").addEventListener("click", runDeposit);
+$("btn-redeem").addEventListener("click", () => runRedeem(false));
+$("btn-redeem-all").addEventListener("click", () => runRedeem(true));
+$("btn-refresh-shares").addEventListener("click", refreshShares);
 $("btn-refresh-vault").addEventListener("click", refreshVault);
 if(hasWallet() && window.ethereum.on){
   window.ethereum.on("accountsChanged", accs => {
     if(!accs || !accs.length){ disconnectWallet(); return; }
-    account = accs[0]; $("w-addr").textContent = account; refreshBalances();
+    account = accs[0]; $("w-addr").textContent = account;
+    $("btn-refresh-shares").disabled = false;
+    refreshBalances(); refreshShares();
   });
   window.ethereum.on("chainChanged", chainId => { onChainChanged(chainId); });
 }
