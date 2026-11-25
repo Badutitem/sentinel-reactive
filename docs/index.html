@@ -342,7 +342,7 @@ async function loadMain(){
   fill("s5-riskreserve", call(BASE_RPCS_CALL, S5, SEL.riskReserve), v => fmtTok(U(v), "WETH"));
 }
 
-/* ---------- live state: rehearsal trio (for the proven-cycle strip) ---------- */
+/* ---------- live state: rehearsal set (for the proven-cycle strip) ---------- */
 async function loadRehearsalState(){
   fill("r5r-updates", call(LASNA_RPCS, R5R, SEL.updates), v => U(v).toString());
   fill("v5r-prot",   call(BASE_RPCS_CALL, V5R, SEL.protectionCount), v => U(v).toString());
