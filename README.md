@@ -10,7 +10,7 @@ human watching charts at 3 a.m.
 
 | | |
 |---|---|
-| 🎥 **Demo video** | https://www.youtube.com/watch?v=zXZDM-lRKeY |
+| 🎥 **Demo video** | https://www.youtube.com/watch?v=tV-rDqcGQ8o |
 | 🏛️ **DoraHacks build** | https://dorahacks.io/build/51122 |
 | 🔎 **Live proof** | https://badutitem.github.io/sentinel-reactive/ — every number on this page, read live from the contracts |
 | 🧪 **Demo app** | https://badutitem.github.io/sentinel-reactive/app.html — the demo shell, opened step by step: step 1 (wallet connect on Base Sepolia, your balances + the live guarded position in your own browser), step 2 (wrap test ETH → approve → deposit WETH into the guarded vault) and step 3 (your shares, your claim on the pool, redeem part or all of it whenever you like) are live; the vault keeps **per-user share accounting** — a deposit mints shares in your name and redemption pays your own slice of the pool — the page says exactly how it works before the deposit button; the test-mUSDC claim step stays blocked by the token itself (mint is owner-only, no public faucet) |
