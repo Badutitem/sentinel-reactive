@@ -9,10 +9,10 @@ import {IReactive} from "@reactive/src/interfaces/IReactive.sol";
 import {ISystemContract} from "@reactive/src/interfaces/ISystemContract.sol";
 import {AbstractPayer} from "@reactive/src/base/AbstractPayer.sol";
 
-/// @notice Tests for SentinelReactiveV3 (trio #4 repair release): the v2
+/// @notice Tests for SentinelReactiveV3 (Release 4 repair release): the v2
 ///         behaviours carried over (subscription, guards, anchor, bit-exact
 ///         parity against the tools/train.py mirror over the SHIPPED v2
-///         weights — the v3 retrain failed its gates, see TRIO4.md) plus
+///         weights — the v3 retrain failed its gates, see RELEASE4.md) plus
 ///         the two contract-level repairs:
 ///           1. replay dedup — a redelivered log changes nothing at all;
 ///           2. TRIM suppression — after a TRIM fires, TRIM votes are

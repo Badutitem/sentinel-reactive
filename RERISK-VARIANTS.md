@@ -6,7 +6,7 @@ complete**; the **real-episode half could not run** in the first pass
 because the repo's kline caches were gone (see "Blocker" below) and
 that pass ran under a no-network constraint. Under the pre-registered
 winner rule — which requires real + synthetic scenarios at equal
-weight — **no winner was crowned in that pass. V1 (the shipped trio #5
+weight — **no winner was crowned in that pass. V1 (the shipped Release 5
 candidate rule) stood.** The synthetic numbers below are reported in
 full because they are real measurements, but they are explicitly NOT
 the verdict: the synthetic set is adversarially weighted (three of its
@@ -20,7 +20,7 @@ episodes are the missing counterweight.
 `SentinelReactiveV5` / `SentinelVaultV4`. The complete real-episode
 table and the verdict computation are in the "Final verdict" section
 at the end of this document; the installed design is documented in
-TRIO5-DESIGN.md's addendum. Everything above the final section is the
+RELEASE5-DESIGN.md's addendum. Everything above the final section is the
 first-pass record, kept verbatim.
 
 ## The variants
@@ -196,7 +196,7 @@ up automatically, prints the full 10-scenario matrix, and the winner
 rule (mean delta vs OFF across all 10 scenarios, ties broken by worst
 failed-V cost; winner must beat V1 on the mean) can then be applied
 and the winner installed. Until then: no contract changes, test count
-unchanged at **120/120**, and V1 remains the trio #5 candidate rule.
+unchanged at **120/120**, and V1 remains the Release 5 candidate rule.
 
 ## Honest limits
 
@@ -339,5 +339,5 @@ suppression and the v2 weights bit-identical to V4) and
 behaviour). `SentinelSwapV2` needed no change. Full suite after
 installation: **144/144 tests, 23 suites** (120 pre-existing + 24
 new). The installed design, its end-to-end numbers and its
-square-wave bound are documented in TRIO5-DESIGN.md's addendum.
+square-wave bound are documented in RELEASE5-DESIGN.md's addendum.
 Still LOCAL ONLY — not deployed.

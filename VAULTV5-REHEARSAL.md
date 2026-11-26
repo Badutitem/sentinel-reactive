@@ -2,7 +2,7 @@
 
 **Date:** 25 Nov 2026, 05:26–05:46 WIB (24 Nov 22:26–22:46 UTC) · **Verdict: PASS — every stage, reconciliation exact to the wei, zero contract anomalies.**
 Driver: `tools/rehearse_vaultv5.sh` (exit 0, no aborts). Full transcript: goal `hidden_files/vaultv5-rehearsal-driver.log`.
-The brain's behaviour reproduced the trio #5R reference run **exactly**: 31 oracle updates → TRIM@7, EXIT@15, RERISK@18, RERISK_FINAL@19, TRIM@25, EXIT@31; final counters protectionCount = 6, reriskCount = 2. Three burner users deposited at three different times, one redeemed partially mid-episode, all redeemed fully at the end; the vault reset to zero.
+The brain's behaviour reproduced the Release 5R reference run **exactly**: 31 oracle updates → TRIM@7, EXIT@15, RERISK@18, RERISK_FINAL@19, TRIM@25, EXIT@31; final counters protectionCount = 6, reriskCount = 2. Three burner users deposited at three different times, one redeemed partially mid-episode, all redeemed fully at the end; the vault reset to zero.
 
 ## 1. Deployments (fresh rehearsal set)
 
@@ -88,4 +88,4 @@ A and B held equal shares (2e15) at the final redemption and received **identica
 5. Public-RPC log limits shaped the evidence collection: Base Sepolia `eth_getLogs` ≤ 200 blocks, Lasna ≤ 30,000 blocks — callback/react hashes were recovered with windowed queries (§2). Base Sepolia publicnode is behind a Cloudflare challenge from this VM and was not used.
 6. Ad-hoc post-run reads of the reactive's counters with guessed getter names returned empty for two fields; the driver's reads (from the contract source) and the recovered event history are the authoritative record (updates 31, protectionCount 6, reriskCount 2).
 
-**Live trio #5 was not touched. Nothing was pushed to GitHub; DoraHacks was not edited. This set is rehearsal-only.**
+**Live Release 5 was not touched. Nothing was pushed to GitHub; DoraHacks was not edited. This set is rehearsal-only.**

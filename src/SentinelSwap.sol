@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.29;
 
-/// @notice Minimal ERC20 surface used by the phase-2 contracts.
+/// @notice Minimal ERC20 surface used by the Release 1 contracts.
 interface IERC20 {
     function balanceOf(address account) external view returns (uint256);
     function transfer(address to, uint256 amount) external returns (bool);
@@ -15,7 +15,7 @@ interface IERC20Metadata {
 }
 
 /// @notice Price-source surface: the exact view MockPriceOracle already
-///         exposes. The Chainlink adapter (phase 2, upgrade B) exposes the
+///         exposes. The Chainlink adapter (Release 2, upgrade B) exposes the
 ///         same view, so one swap contract serves both demos.
 interface IPriceSource {
     function latestPrice(address token) external view returns (uint256);

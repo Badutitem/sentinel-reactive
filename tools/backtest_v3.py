@@ -7,8 +7,8 @@ same pipeline (decisions from the 3rd price over the last <= 9 closes;
 that produced them; no gas/slippage; cooldown never binds at 1h).
 
 Step 1 reproduces BACKTEST.md's v1 table exactly (pipeline proof).
-Step 2 prints v2 (shipped, trio #3) and v3 (candidate weights in
-src/model/SentinelWeightsV3.sol) side by side and evaluates the trio
+Step 2 prints v2 (shipped, Release 3) and v3 (candidate weights in
+src/model/SentinelWeightsV3.sol) side by side and evaluates the Release
 #4 gate: v3 no worse than v2 — operationalised as
   * calm episodes (sep2023, feb2024): v3 EXIT windows == 0 (hard);
   * crash episodes: v3 fires >= 1 EXIT; first EXIT no more than 6
@@ -35,7 +35,7 @@ W2 = T.parse_weights_v2_sol(ROOT / "src" / "model" / "SentinelWeightsV2.sol")
 _W3_PATH = ROOT / "src" / "model" / "SentinelWeightsV3.sol"
 if not _W3_PATH.exists():
     sys.exit("SentinelWeightsV3.sol not in tree: the v3 candidate was NOT "
-             "shipped (see TRIO4.md). Regenerate it with "
+             "shipped (see RELEASE4.md). Regenerate it with "
              "`python3 tools/train.py v3` to rerun this comparator.")
 W3 = T.parse_weights_v2_sol(_W3_PATH)
 

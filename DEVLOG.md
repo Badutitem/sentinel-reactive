@@ -2,10 +2,10 @@
 
 Historical record of how Sentinel was built, funded, deployed and rehearsed
 during the Reactive Omni Buildathon (November 2026). This file preserves the
-phase-by-phase working notes that used to live in the README. For the
+release-by-release working notes that used to live in the README. For the
 project overview, see [README.md](README.md).
 
-## Deployment order (phase 2, for reference)
+## Deployment order (Release 1, for reference)
 
 1. Get testnet funds: Sepolia ETH → swap for lREACT via the faucet contract
    (from Ethereum Sepolia: `request(address)` on
@@ -24,7 +24,7 @@ project overview, see [README.md](README.md).
 
 A single-chain rehearsal deploy (anvil) is in `script/Deploy.s.sol`.
 
-## Phase-2 status (2026-11-13) — DEPLOYED + rehearsed live
+## Release 1 status (2026-11-13) — DEPLOYED + rehearsed live
 
 - ✅ **Training done**: `tools/train.py` written, weights regenerated, test
   vectors re-pinned, `forge test` 24/24. Shipped integer model: 97.47%
@@ -94,7 +94,7 @@ both the Lasna system contract and the Base Sepolia callback proxy.
 held 0.69 lREACT after a post-rehearsal top-up, enough for ~25 more
 updates); callbacks cost the vault ~0.0000009 ETH each.
 
-## Phase 2 TODO — history (all items closed)
+## Release 1 TODO — history (all items closed)
 
 - [x] `tools/train.py`: synthetic series generator + trainer + quantizer;
       regenerate `SentinelWeights.sol` with trained weights; refresh the
@@ -117,9 +117,9 @@ updates); callbacks cost the vault ~0.0000009 ETH each.
 - [x] Submit the BUIDL on DoraHacks. **Done 2026-11-14 — Build 51122:
       https://dorahacks.io/build/51122** (track deadline Dec 5, 2026).
 
-## Phase 2 — real-asset vault upgrade (2026-11-15)
+## Release 1 — real-asset vault upgrade (2026-11-15)
 
-Upgrade A of the phase-2 design: replace the counter-only vault with a
+Upgrade A of the Release 1 design: replace the counter-only vault with a
 real-asset vault, wired into the *existing* `SentinelReactive` +
 `MockPriceOracle` (no reactive redeploy). Executed end-to-end on testnet
 (Base Sepolia 84532 + Lasna 5318007) with zero reverts; every figure below
@@ -133,7 +133,7 @@ Lasna 0.462130799998621308 lREACT. Reactive held 0.6912877 lREACT, debt 0,
 = 30. **Fuel decision:** lean rehearsal plan = 13 trigger pushes ≈ 0.35
 lREACT < 0.691 available → **no faucet top-up needed, none performed**;
 Sepolia ETH untouched. Local gate before deploying: `forge build` +
-`forge test` → **42/42 pass** (24 phase-1 tests + 18 new).
+`forge test` → **42/42 pass** (24 Release 1 tests + 18 new).
 
 **Deployments (Base Sepolia, in design order)** — all three
 **Sourcify-verified (exact match)**:
@@ -161,8 +161,8 @@ max WETH allowance.
 
 **Wiring (Lasna):** `SentinelReactive.setVault(VaultV2)`
 `0xd9d983a15f270a916d60d7c4914ae3d4b82aedc84232c2427a44d7c72ea8d9ee` —
-verified after via `reactive.vault()` read-back. V1 vault and the phase-1
-trio are untouched; only the reactive's callback pointer moved.
+verified after via `reactive.vault()` read-back. V1 vault and the Release 1
+set are untouched; only the reactive's callback pointer moved.
 
 **Live rehearsal — full log (2026-11-15).** Driver convention: each step
 pushed the WETH mirror price first (18-dec USD, swap pricing), then the
@@ -238,7 +238,7 @@ for upgrade B work). All balances reconcile exactly (reserve 1000 − 14.1
 
 1. **Watched token ≠ WETH.** Decoding the reactive's deployment tx
    (`0x1349cd6d58fdda0c2a15fee36549d3b25e566988e374ca782445c268b058e563`)
-   proved its subscription topic1 is the phase-1 stand-in token
+   proved its subscription topic1 is the Release 1 stand-in token
    `0x000000000000000000000000000000000000dEaD`, *not* WETH. With the
    reactive kept as-is (per plan), the rehearsal drove decisions on
    `0xdEaD` (1e8 scale, consistent with the ring buffer's existing
@@ -247,8 +247,8 @@ for upgrade B work). All balances reconcile exactly (reserve 1000 − 14.1
    prices from. Both keys live in the same `MockPriceOracle`; WETH pushes
    cannot trigger reacts (topic1 filter). A WETH-subscribed reactive
    remains upgrade B's redeploy.
-2. **TRIM fired on grind push #4 (94.0), not #3** as in phase 1 — the
-   window composition differs (5-push calm vs 9, plus the phase-1 tail).
+2. **TRIM fired on grind push #4 (94.0), not #3** as in Release 1 — the
+   window composition differs (5-push calm vs 9, plus the Release 1 tail).
    Behaviour stayed inside the design envelope; no extra pushes were
    needed and the total (13) stayed inside the lean fuel plan.
 3. **Tooling quirk:** Foundry 1.9's `forge create` needs `--broadcast`;
@@ -257,11 +257,11 @@ for upgrade B work). All balances reconcile exactly (reserve 1000 − 14.1
    was re-run correctly.
 4. **No top-up performed** — the lean plan fit the existing fuel (above).
 
-## Phase 2B — Chainlink adapter upgrade (2026-11-15)
+## Release 2 — Chainlink adapter upgrade (2026-11-15)
 
-Upgrade B of the phase-2 design: a second, self-consistent trio whose
+Upgrade B (Release 2): a second, self-consistent release whose
 price origin is the real Chainlink ETH/USD feed on Base Sepolia, relayed
-by `ChainlinkPriceAdapter`. Demo A (mock-origin trio) untouched. Testnet
+by `ChainlinkPriceAdapter`. Release 1 (mock-origin set) untouched. Testnet
 only (Base Sepolia 84532 + Lasna 5318007), executed per
 `phase2b-deploy-runbook.md`; every figure below was read back on-chain.
 Full run report:
@@ -278,9 +278,9 @@ lREACT faucet round: `request(devWallet)` on the Sepolia faucet
 credited exactly **+2.1 lREACT** on Lasna (Lasna balance after:
 2.559128299998591283). (b) Bridge: plain ETH transfer to the
 L1StandardBridge `0xfd0Bf71F60660E2f608ed56e1659C450eB113120` on Sepolia
-(the phase-1 route) — **0.0095 ETH**,
+(the Release 1 route) — **0.0095 ETH**,
 `0x731ca5be13d8fbe9c0555c874edca9fe285899fd9a01682bccf71b648fec79f1`
-(gasUsed 634,136 — identical to phase 1's deposit); L2 credit landed
+(gasUsed 634,136 — identical to Release 1's deposit); L2 credit landed
 ~7 minutes later (Base Sepolia 0.004967 → 0.014467498075732014). No
 external funding was needed and none was requested. The old reactive's
 0.3371809 lREACT stays stranded, as documented (no owner-withdraw path).
@@ -382,7 +382,7 @@ updates − 2 warm-up).
    the bridge's receive path and its default fee suggestion exceeded the
    wallet's upfront balance at a 700k gas limit; the deposit was sent
    with explicit gas limit 700,000 and explicit EIP-1559 fees (max 0.6 /
-   priority 0.55 gwei). gasUsed 634,136 — identical to phase 1's deposit,
+   priority 0.55 gwei). gasUsed 634,136 — identical to Release 1's deposit,
    confirming the same route.
 3. **Driver/watcher restarts:** the first driver launch inherited a shell
    without `~/.foundry/bin` on PATH (`cast` unresolved); both tools now
@@ -393,14 +393,14 @@ updates − 2 warm-up).
    first Decision were captured); relaunched 13:21Z for the remainder of
    the window. The on-chain record is continuous; only the off-chain poke
    cadence had a ~2-minute gap, which the heartbeat semantics absorb.
-4. Demo A trio, the old reactive (0.3371809 lREACT) and all phase-1/A
+4. Release 1 set, the old reactive (0.3371809 lREACT) and all Release 1
    evidence are untouched; reactive #2 is an additional deployment, not
    a replacement.
 
-## Trio #4 — repair release (2026-11-19)
+## Release 4 — repair release (2026-11-19)
 
 Ordered after the 73-test adversarial pass documented two contract-level
-weaknesses and one model limitation. Full record: TRIO4.md.
+weaknesses and one model limitation. Full record: RELEASE4.md.
 
 **Repairs shipped** in `src/SentinelReactiveV3.sol` (V2 sources
 untouched): (1) replay dedup — log-identity mapping
@@ -415,7 +415,7 @@ correctly (TRIM from step 1); the v2 model underfits it. Three retrains
 with fresh-peak decline families + recovery anchors: attempts 2–3 hit
 recovery step 1 but held-out fidelity fell to 93.6–94.2% vs the 95.41%
 gate (attempt 1: step 5, 95.05%). Per the work order's rule the model
-was not shipped; trio #4 runs v2 weights; the blind window stays a
+was not shipped; Release 4 runs v2 weights; the blind window stays a
 documented limitation (pinned by adversarial case (e) and re-measured
 live: HOLD ×7, EXIT at step 8). Failed v3 weight artifacts deleted;
 training code retained (`tools/train.py` v3 section,
@@ -428,7 +428,7 @@ tx `0x87711812…` (0.02 ETH → ~2.1 lREACT); bridge tx `0x833539a2…`
 
 **Deployments** (all Sourcify exact_match): reactive #4
 `0xcE8615E0…d2AA3` (Lasna, 1.05 lREACT), swap #4 `0xfc25B4e4…Bf05`,
-vault #4 `0xBd5d3146…9d06` (0.0001 WETH position); rehearsal trio #4R:
+vault #4 `0xBd5d3146…9d06` (0.0001 WETH position); rehearsal Release 4R:
 oracle `0xA9aCa385…f63a`, reactive `0xC497213a…52B8` (1.10 lREACT),
 swap `0x05111b77…B4B5`, vault `0x57298806…50d3` (0.0002 WETH).
 Tooling note: this Foundry (1.9.0) needs `--broadcast` on `forge
@@ -439,20 +439,20 @@ unchanged nonce/balance) and were re-run correctly.
 HOLDs; −2% bleed → TRIM (cb `0x2ec7cb8b…`), 7 `TrimSuppressed` events,
 EXIT (cb `0x4a27b310…`); re-arm; recovery TRIM at $83.70 (cb
 `0x3d9c60e5…` — deviation from the mirror's 14-push-bleed simulation,
-inside the teacher's anchor-TRIM band, recorded in TRIO4.md); −3%
+inside the teacher's anchor-TRIM band, recorded in RELEASE4.md); −3%
 decline → EXIT at step 8 (cb `0x2f6c3371…`). Vault mUSDC 0.0343135 =
-exact sum of fills; protections 4; closed. Main trio: 2 real Chainlink
+exact sum of fills; protections 4; closed. Main release: 2 real Chainlink
 emissions ($1,770.91 → $1,775.53614611; syncs `0xd8303e1d…`,
 `0x401ed273…`; reacts `0xd5262af6…`, `0xd590c8d6…`), anchor re-anchored
-to the wei, HOLD. Trio #3 ingested the same emissions (1.46745 lREACT
+to the wei, HOLD. Release 3 ingested the same emissions (1.46745 lREACT
 after). Fuel after: R4 1.010342, R4R 0.1856625 lREACT; dev 0.2296481
 lREACT / 0.950149 Sepolia ETH / 0.0093168 Base Sepolia ETH.
 
-## Trio #5 — re-risk release (2026-11-19)
+## Release 5 — re-risk release (2026-11-19)
 
 Closes the one structural gap vs two-way rivals: after a de-risk,
-Sentinel could never get back in. Full record: TRIO5.md; design:
-TRIO5-DESIGN.md; evaluation: RERISK-VARIANTS.md.
+Sentinel could never get back in. Full record: RELEASE5.md; design:
+RELEASE5-DESIGN.md; evaluation: RERISK-VARIANTS.md.
 
 **What shipped** (`SentinelReactiveV5` + `SentinelVaultV4` +
 `SentinelSwapV2` redeployed; V1–V4 files untouched): a rule-based
@@ -477,7 +477,7 @@ ETH, enough for all Base deploys/seeds/wraps/pushes.
 **Deployments** (all Sourcify exact_match): reactive #5
 `0x0Fdab4F5…aCd4` (Lasna, 1.05 lREACT + 0.10 top-up), swap #5
 `0x80c3BF68…572a`, vault #5 `0xb13BF7Ff…Ac9` (0.0001 WETH);
-rehearsal trio #5R: oracle `0xfC2E4b2B…E2c3`, reactive
+rehearsal Release 5R: oracle `0xfC2E4b2B…E2c3`, reactive
 `0x1123b38e…6e3e1` (1.40 lREACT), swap `0x4357e129…Ec0E`, vault
 `0x242719F8…d60e` (0.0002 WETH).
 
@@ -495,9 +495,9 @@ by a service restart after update 22; the /tmp transcript was
 lost, state was rebuilt from chain reads and the run resumed
 (`tools/rehearse_v5_resume.sh`, pushes 23–31) — 31 pushes, 31
 updates, no duplicate; origin txs for pushes 18–22 recovered
-from the oracle's history. Main trio: 3 real Chainlink emissions
+from the oracle's history. Main release: 3 real Chainlink emissions
 ($1,803.58151417 — quiet feed, two heartbeat re-emissions),
-HOLD warm-up; trios #3/#4 ingested the same window. Fuel after:
+HOLD warm-up; Releases 3/4 ingested the same window. Fuel after:
 R5 1.0758959, R5R 0.314275, R4 0.8655486, R3 1.3477034 lREACT;
 dev 1.5172008 lREACT / 0.910149 Sepolia ETH / 0.0085791 Base
 Sepolia ETH.

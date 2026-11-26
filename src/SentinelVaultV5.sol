@@ -5,7 +5,7 @@ import {AbstractCallback} from "@reactive/src/base/AbstractCallback.sol";
 import {IPayable} from "@reactive/src/interfaces/IPayable.sol";
 import {IERC20, IERC20Metadata, IPriceSource, SentinelSwapV2} from "./SentinelSwapV2.sol";
 
-/// @title SentinelVaultV5 — pooled destination-chain vault with per-user shares (trio #6 candidate).
+/// @title SentinelVaultV5 — pooled destination-chain vault with per-user shares (Release 6).
 /// @notice SentinelVaultV4's guard machine (TRIM / EXIT / RERISK /
 ///         RERISK_FINAL, variant B scale-in) with the ownership model
 ///         replaced: the position is now a POOL. Anyone can `deposit`
@@ -71,6 +71,15 @@ contract SentinelVaultV5 is AbstractCallback {
     /// @notice The share-backed safe-asset total (see `managedRisk`).
     uint256 public managedSafe;
 
+    /// @notice Price (18-decimal USD) the desk last settled a trade or
+    ///         deposit at; 0 = no settlement yet. Anchor for the deposit
+    ///         deviation guard (Release 8, F1-B): a deposit into a mixed
+    ///         pool reverts when the reference price is more than 50%
+    ///         away from this anchor.
+    uint256 public lastSettledPrice;
+    /// @notice Deposit deviation band: 5000 bps = 50% from `lastSettledPrice`.
+    uint256 public constant MAX_DEPOSIT_DEVIATION_BPS = 5000;
+
     event PositionOpened(uint256 size);
     event ProtectionExecuted(address indexed reactive, uint8 action, uint256 positionBefore, uint256 positionAfter);
     event DeRisked(uint8 action, uint256 riskOut, uint256 safeIn);
@@ -82,6 +91,9 @@ contract SentinelVaultV5 is AbstractCallback {
     error ZeroAmount();
     error ZeroShares();
     error NoReferencePrice();
+    error StalePrice(uint256 ageSeconds);
+    error PriceDeviation(uint256 price, uint256 anchor);
+    error UnknownAction(uint8 action);
     error InsufficientShares(address user, uint256 requested, uint256 held);
     error ExceedsSurplus(address asset, uint256 requested, uint256 surplus);
 
@@ -174,9 +186,25 @@ contract SentinelVaultV5 is AbstractCallback {
     /// @return shares The shares minted to the caller.
     function deposit(uint256 amount) external returns (uint256 shares) {
         if (amount == 0) revert ZeroAmount();
+        uint256 price;
         if (totalShares == 0) {
             shares = amount;
         } else {
+            if (managedSafe > 0) {
+                // Release 8 (F2): a deposit into a mixed pool fails closed
+                // on a stale reference price — the user retries later.
+                if (swap.priceStale()) revert StalePrice(swap.priceAge());
+                // Release 8 (F1-B): a compromised or fat-fingered pusher
+                // must not reprice the pool in one print. The guard binds
+                // deposits only — protection fills are never banded (a
+                // genuine crash exit must never be blocked by a band).
+                price = IPriceSource(address(swap.priceSource())).latestPrice(address(riskAsset));
+                if (lastSettledPrice != 0) {
+                    if (price > lastSettledPrice * 3 / 2 || price * 2 < lastSettledPrice) {
+                        revert PriceDeviation(price, lastSettledPrice);
+                    }
+                }
+            }
             shares = amount * totalShares / _poolRiskEq();
             if (shares == 0) revert ZeroShares();
         }
@@ -185,6 +213,8 @@ contract SentinelVaultV5 is AbstractCallback {
         totalShares += shares;
         sharesOf[msg.sender] += shares;
         closed = false;
+        // Release 8 (F1-B): the deposit itself settles at this price.
+        if (managedSafe > 0 && price > 0) lastSettledPrice = price;
         emit PositionOpened(amount);
         emit SharesMinted(msg.sender, amount, shares);
     }
@@ -247,6 +277,12 @@ contract SentinelVaultV5 is AbstractCallback {
         onlyServiceProvider
         onlyCallbackSender(reactive_)
     {
+        // Release 8 (F5): unknown action codes revert instead of
+        // inflating `protectionCount` with a phantom protection.
+        if (action_ < ACTION_TRIM || action_ > ACTION_RERISK_FINAL) revert UnknownAction(action_);
+        // Release 8 (F1-B): reference price read once, before the swaps;
+        // the anchor moves only when value actually moves (below).
+        uint256 refPrice = IPriceSource(address(swap.priceSource())).latestPrice(address(riskAsset));
         uint256 before_ = positionSize();
         uint256 rawRiskBefore = riskAsset.balanceOf(address(this));
         uint256 rawSafeBefore = safeAsset.balanceOf(address(this));
@@ -257,6 +293,7 @@ contract SentinelVaultV5 is AbstractCallback {
                 if (riskOut > 0) {
                     closed = false;
                     reriskCount++;
+                    if (refPrice > 0) lastSettledPrice = refPrice;
                     emit ReRisked(rawSafeBefore - safeAsset.balanceOf(address(this)), riskOut);
                 }
             }
@@ -264,9 +301,11 @@ contract SentinelVaultV5 is AbstractCallback {
             if (action_ == ACTION_EXIT) {
                 uint256 safeIn = swap.swapRiskForSafe(before_);
                 closed = true;
+                if (safeIn > 0 && refPrice > 0) lastSettledPrice = refPrice;
                 emit DeRisked(action_, rawRiskBefore - riskAsset.balanceOf(address(this)), safeIn);
             } else if (action_ == ACTION_TRIM) {
                 uint256 safeIn = swap.swapRiskForSafe(before_ / 2);
+                if (safeIn > 0 && refPrice > 0) lastSettledPrice = refPrice;
                 emit DeRisked(action_, rawRiskBefore - riskAsset.balanceOf(address(this)), safeIn);
             }
         }

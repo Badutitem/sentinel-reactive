@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Demo B live-window driver for Sentinel (phase 2, upgrade B).
+# Release 2 live-window driver for Sentinel (Release 2, upgrade B).
 # Polls the Chainlink feed's latestRoundData() off-chain; when the round
 # changes (or a periodic poke is due), calls ChainlinkPriceAdapter.sync()
 # from the dev wallet. The adapter re-checks deadband / min-interval /

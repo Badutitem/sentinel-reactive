@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.29;
 
-/// @title MockUSDC — minimal test ERC20 standing in for USDC (phase 2, upgrade A).
+/// @title MockUSDC — minimal test ERC20 standing in for USDC (Release 1, upgrade A).
 /// @notice The vault's safe asset. Uses 18 decimals (not USDC's 6) so the demo
 ///         is single-scale; SentinelSwap normalises by `decimals()` anyway, so
 ///         the real 6-decimal Base Sepolia USDC is a drop-in replacement later.

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # FLAGSHIP SWAP deploy driver — SentinelVaultV5 flagship set.
-# Mirrors the trio #5 MAIN deployment (ChainlinkPriceAdapter origin),
+# Mirrors the Release 5 MAIN deployment (ChainlinkPriceAdapter origin),
 # with SentinelVaultV5 as the vault:
 #   1. SentinelSwapV2 (Base Sepolia, priceSource = adapter, vault = 0)
 #   2. SentinelReactiveV5 (Lasna, adapter origin, 1.15 lREACT attached)
@@ -56,7 +56,7 @@ say "preflight: dev BaseSep=$DEVBASE dev Lasna=$DEVLASNA adapterLastPrice=$(cv "
 python3 -c "exit(0 if $DEVBASE >= 10000000000000000 else 1)" || fail "dev Base Sepolia balance below 0.01 ETH"
 python3 -c "exit(0 if $DEVLASNA >= 1350000000000000000 else 1)" || fail "dev Lasna balance below 1.35 lREACT"
 
-# --- 1. Swap desk (vault = 0, wired later, exactly as trio #5) ---
+# --- 1. Swap desk (vault = 0, wired later, exactly as Release 5) ---
 read SWAP SWAP_TX <<< "$(create "$BASE_RPC" src/SentinelSwapV2.sol:SentinelSwapV2 --constructor-args "$WETH" "$MUSDC" "$ADAPTER" 0x0000000000000000000000000000000000000000)"
 say "SWAP deployed: $SWAP tx=$SWAP_TX"
 [ "$(cv "$SWAP" "priceSource()(address)" "$BASE_RPC" | tr 'A-F' 'a-f')" = "$(echo "$ADAPTER" | tr 'A-F' 'a-f')" ] || fail "swap priceSource mismatch"

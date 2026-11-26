@@ -6,9 +6,9 @@ import {IReactive} from "@reactive/src/interfaces/IReactive.sol";
 import {ISystemContract} from "@reactive/src/interfaces/ISystemContract.sol";
 import {SentinelModelV2} from "./model/SentinelModelV2.sol";
 
-/// @title SentinelReactiveV3 — the repair release (trio #4).
+/// @title SentinelReactiveV3 — the repair release (Release 4).
 /// @notice SentinelReactiveV2 plus the three repairs documented in
-///         TRIO4.md, each closing a weakness measured against the shipped
+///         RELEASE4.md, each closing a weakness measured against the shipped
 ///         v2 system (test/SentinelAdversarial.t.sol):
 ///           1. REPLAY DEDUP. V2 ingested a redelivered log as a fresh
 ///              update — window and anchor advanced twice for one price;
@@ -18,7 +18,7 @@ import {SentinelModelV2} from "./model/SentinelModelV2.sol";
 ///              index) and ignores any log it has already processed: a
 ///              replay changes no state at all — no window push, no
 ///              anchor step, no inference, no callback.
-///           2. MODEL V3 — ATTEMPTED, NOT SHIPPED (see TRIO4.md for
+///           2. MODEL V3 — ATTEMPTED, NOT SHIPPED (see RELEASE4.md for
 ///              the full attempt table). The blind-window retrain (v2
 ///              mix plus the two peak-decline families, teacher v2
 ///              unchanged) was run three times: every configuration
@@ -55,7 +55,7 @@ import {SentinelModelV2} from "./model/SentinelModelV2.sol";
 ///           reactive transactions; a contract in debt receives nothing),
 ///        2. deploy SentinelVaultV2 with this contract's address,
 ///        3. call `setVault` here so callbacks have a recipient.
-///      Intended deployment (trio #4): origin = Base Sepolia, oracle = the
+///      Intended deployment (Release 4): origin = Base Sepolia, oracle = the
 ///      ChainlinkPriceAdapter (which re-emits PriceUpdated keyed to real
 ///      WETH), token = WETH, cooldown = 300 s.
 contract SentinelReactiveV3 is AbstractReactive {

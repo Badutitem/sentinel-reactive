@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Sentinel phase 2 — off-chain trainer for the on-chain MLP (6 -> 8 -> 3).
+Sentinel Release 1 — off-chain trainer for the on-chain MLP (6 -> 8 -> 3).
 
 Pipeline:
   1. Verify the Python integer reference implementation (features + forward
-     pass) bit-for-bit against the phase-1 Solidity behaviour, by parsing the
+     pass) bit-for-bit against the Release 1 Solidity behaviour, by parsing the
      CURRENT SentinelWeights.sol and reproducing the exact logits/hidden
      values pinned in test/SentinelModel.t.sol and the exact features pinned
      in test/SentinelReactive.t.sol. If the mirror drifts, this script aborts
@@ -20,7 +20,7 @@ Pipeline:
   4. Acceptance: the canonical feature vectors (zero/calm/grind/crash/
      uptrend) and the canonical price paths from the Foundry tests must
      classify exactly as the tests expect.
-  5. Regenerate src/model/SentinelWeights.sol in the phase-1 codegen shape
+  5. Regenerate src/model/SentinelWeights.sol in the Release 1 codegen shape
      and write tools/vectors.json with the fresh expected logits/scores so
      the Foundry tests can be re-pinned.
 
@@ -111,7 +111,7 @@ def forward_int(f, w1, b1, w2, b2):
 
 
 # ---------------------------------------------------------------------------
-# Step 1 — parse the phase-1 weights and prove the mirror is bit-exact.
+# Step 1 — parse the Release 1 weights and prove the mirror is bit-exact.
 # ---------------------------------------------------------------------------
 
 PINNED_MODEL_VECTORS = {
@@ -147,7 +147,7 @@ def parse_weights_sol(path):
     return out["weights1"], out["biases1"], out["weights2"], out["biases2"]
 
 
-# The phase-1 hand-set weights, frozen here so the mirror proof stays valid
+# The Release 1 hand-set weights, frozen here so the mirror proof stays valid
 # (and this script stays idempotent) after SentinelWeights.sol is regenerated
 # with trained weights.
 PHASE1_W1 = [
@@ -182,7 +182,7 @@ def verify_mirror_against_phase1():
     assert feats == PINNED_CRASH_FEATURES, f"mirror: crash features {feats}"
     _, scores, _ = forward_int(feats, w1, b1, w2, b2)
     assert scores == PINNED_CRASH_SCORES, f"mirror: crash scores {scores}"
-    print("[mirror] Python reference reproduces phase-1 Solidity bit-for-bit "
+    print("[mirror] Python reference reproduces Release 1 Solidity bit-for-bit "
           "(5 model vectors, crash-path features + scores).")
 
 
@@ -305,7 +305,7 @@ def build_dataset(rng, series_per_scenario=90):
             (s_held if i % 5 == 4 else s_train).extend(samples)
         train.extend(s_train)
         heldout.extend(s_held)
-    # Anchor samples: the canonical vectors/paths encode phase-1's intended
+    # Anchor samples: the canonical vectors/paths encode Release 1's intended
     # semantics; include the exact points plus jittered copies, up-weighted.
     anchors = []
     for name, (feats, action, _, _) in PINNED_MODEL_VECTORS.items():
@@ -445,7 +445,7 @@ def acceptance(w1i, b1i, w2i, b2i, verbose=True):
 
 
 # ---------------------------------------------------------------------------
-# Step 4 — codegen: regenerate SentinelWeights.sol in the phase-1 shape.
+# Step 4 — codegen: regenerate SentinelWeights.sol in the Release 1 shape.
 # ---------------------------------------------------------------------------
 
 
@@ -476,7 +476,7 @@ pragma solidity ^0.8.29;
 ///         held-out {metrics['float_held']:.4f}. Quantized integer model
 ///         (this file): train {metrics['int_train']:.4f}, held-out
 ///         {metrics['int_held']:.4f}. The training script verified its integer
-///         reference implementation bit-for-bit against the phase-1 Solidity
+///         reference implementation bit-for-bit against the Release 1 Solidity
 ///         behaviour before training, and the shipped weights pass the
 ///         canonical acceptance vectors (calm -> HOLD, grind -> TRIM,
 ///         crash -> EXIT). Do not hand-edit the tables — regenerate them with
@@ -1167,7 +1167,7 @@ def main_v2():
 
 
 # ===========================================================================
-# V3 — the V-recovery blind-window fix (trio #4 repair release, 2026-11-19).
+# V3 — the V-recovery blind-window fix (Release 4 repair release, 2026-11-19).
 #
 # Everything below is ADDITIVE: no v1/v2 function above is modified, and
 # the v1/v2 entry points still reproduce their shipped weights. Run v3
@@ -1432,7 +1432,7 @@ def write_weights_v3_sol(w1i, b1i, w2i, b2i, metrics):
 pragma solidity ^0.8.29;
 
 /// @title SentinelWeightsV3 — quantized weights for the Sentinel MLP v3
-///        (7 -> {len(b1i)} -> 3), shipped in SentinelReactiveV3 (trio #4).
+///        (7 -> {len(b1i)} -> 3), shipped in SentinelReactiveV3 (Release 4).
 /// @notice TRAINED 2026-11-19 by tools/train.py v3 path (seed {SEED_V3};
 ///         {metrics['series']} series across calm / uptrend / chop /
 ///         grind-down / crash / V-recovery / slow-grind / staircase /
@@ -1447,7 +1447,7 @@ pragma solidity ^0.8.29;
 ///         immediate sustained decline) close the measured v2 fit gap
 ///         in which the model voted HOLD for 7 steps of a -3%/step
 ///         decline after a V-recovery while its own teacher said TRIM
-///         from step 1 (see TRIO4.md). Dataset: {metrics['train_n']}
+///         from step 1 (see RELEASE4.md). Dataset: {metrics['train_n']}
 ///         train / {metrics['held_n']} held-out windows. Float model
 ///         accuracy: train {metrics['float_train']:.4f}, held-out
 ///         {metrics['float_held']:.4f}. Quantized integer model (this

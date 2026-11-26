@@ -14,10 +14,10 @@ import {ISystemContract} from "@reactive/src/interfaces/ISystemContract.sol";
 ///         behaviours re-pinned to their NEW measured semantics:
 ///           (c) replayed logs are now IGNORED ENTIRELY (v2: ingested
 ///               as fresh updates; only the cooldown prevented a
-///               double fire). Repair 1 of TRIO4.md.
+///               double fire). Repair 1 of RELEASE4.md.
 ///           (e) the V-recovery blind window is UNCHANGED — the model
 ///               v3 retrain that targeted it failed its validation
-///               gates and was not shipped (TRIO4.md), so this case
+///               gates and was not shipped (RELEASE4.md), so this case
 ///               keeps pinning the limitation honestly: 7 HOLD steps
 ///               into a post-recovery decline, EXIT at step 8, with
 ///               the re-armed callback firing inside the old cooldown.
@@ -260,7 +260,7 @@ contract SentinelAdversarialV3Test is Test {
     ///         honestly: the model votes HOLD for the first seven -3%
     ///         steps after the sharp V-recovery (the recovery prices
     ///         fill the window) and engages at step 8, straight to EXIT.
-    ///         The v3 retrain that targeted this (TRIO4.md) reached
+    ///         The v3 retrain that targeted this (RELEASE4.md) reached
     ///         step 1 on this exact path but regressed held-out fidelity
     ///         below the shipped v2's 95.41% in all three attempts and
     ///         was not shipped; this test is the standing evidence.

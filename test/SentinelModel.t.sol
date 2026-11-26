@@ -7,7 +7,7 @@ import {SentinelModel} from "../src/model/SentinelModel.sol";
 /// @notice Unit tests for the MLP forward pass. Expected logits were computed
 ///         with the off-chain reference implementation in tools/train.py
 ///         (mirrors Solidity's truncating division exactly) for the trained
-///         phase-2 weights in SentinelWeights.sol — these tests pin the
+///         Release 1 weights in SentinelWeights.sol — these tests pin the
 ///         Solidity math bit-for-bit against the Python reference
 ///         (tools/vectors.json). Regenerate with tools/train.py, never by hand.
 contract SentinelModelTest is Test {

@@ -12,7 +12,7 @@ pragma solidity ^0.8.29;
 ///         held-out 0.9710. Quantized integer model
 ///         (this file): train 0.9749, held-out
 ///         0.9747. The training script verified its integer
-///         reference implementation bit-for-bit against the phase-1 Solidity
+///         reference implementation bit-for-bit against the Release 1 Solidity
 ///         behaviour before training, and the shipped weights pass the
 ///         canonical acceptance vectors (calm -> HOLD, grind -> TRIM,
 ///         crash -> EXIT). Do not hand-edit the tables — regenerate them with

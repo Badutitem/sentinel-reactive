@@ -9,9 +9,9 @@ slice of both pool legs (WETH + MockUSDC). The guard still acts on the
 whole pool at once; every holder shares the same decisions pro-rata.
 Design: `VAULTV5-DESIGN.md`. The on-chain multi-user rehearsal of this
 exact vault code passed with wei-exact reconciliation earlier the same
-night: `VAULTV5-REHEARSAL.md`. The previous flagship set (trio #5,
+night: `VAULTV5-REHEARSAL.md`. The previous flagship set (Release 5,
 `SentinelVaultV4`) stays live and untouched as the previous
-generation; its record is `TRIO5.md`.
+generation; its record is `RELEASE5.md`.
 
 ## Deployments — all Sourcify exact_match (creation + runtime)
 
@@ -22,7 +22,7 @@ generation; its record is `TRIO5.md`.
 | `SentinelVaultV5` (flagship vault) | Base Sepolia (84532) | `0x108513e6439664fdeE9050e1ccc208e8c1b61441` | `0xc2c4b6b1c26aa220daf0c46ec8f5ceceaebf3eb6ce0915de37949ec8a4389117` | 59863253 |
 
 Constructor wiring identical to the previous flagship: the brain
-subscribes to the phase-2B Chainlink adapter
+subscribes to the Release 2 Chainlink adapter
 (`0xAb9c7a5178B444cd1C1fD705e5eBeCf4b9A1C25F`, token WETH, cooldown
 300 s); the desk's price source is the same adapter; the vault's
 callback proxy is `0x476F44b11F5C942c58f4c8E3d0300E5710743585`. The

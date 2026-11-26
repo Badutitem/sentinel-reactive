@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Live testnet rehearsal driver for Sentinel trio #5 (SentinelReactiveV5,
+# Live testnet rehearsal driver for Sentinel Release 5 (SentinelReactiveV5,
 # variant-B scale-in re-risk, mock origin). Pushes the mirror-validated
 # price series (tools/rerisk_variants.py, variant B, live position size)
-# into the trio #5 rehearsal MockPriceOracle on Base Sepolia and waits
+# into the Release 5 rehearsal MockPriceOracle on Base Sepolia and waits
 # for the Lasna reactive to ingest each push before continuing:
 #   Stage A calm x5            -> HOLD, no callbacks
 #   Stage B bleed -2%/step x10 -> TRIM fires (position halved), repeat

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# RESUME driver for the trio #5 rehearsal: the original rehearse_v5.sh
+# RESUME driver for the Release 5 rehearsal: the original rehearse_v5.sh
 # run was killed by a service restart after update 22 (stage D push 2).
 # On-chain state was verified before resuming (updates=22, oracle last
 # price 99.401, vault 0.000381598666909677 WETH / 0 mUSDC, prot=4,

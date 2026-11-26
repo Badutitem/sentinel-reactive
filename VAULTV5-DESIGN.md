@@ -1,9 +1,9 @@
-# SentinelVaultV5 — design (per-user pooled vault, trio #6 candidate)
+# SentinelVaultV5 — design (per-user pooled vault, Release 6)
 
-Status: phase 1 (design + contract + tests, local only — NOT deployed).
-Predecessor: `src/SentinelVaultV4.sol` (trio #5, one shared position,
+Status: Step 1 (design + contract + tests, local only — NOT deployed).
+Predecessor: `src/SentinelVaultV4.sol` (Release 5, one shared position,
 public deposit, owner-only withdraw, no per-user accounting).
-Companion docs: `TRIO5-DESIGN.md` (the brain/vault/desk trio as shipped),
+Companion docs: `RELEASE5-DESIGN.md` (the brain/vault/desk release as shipped),
 `RERISK-VARIANTS.md` (why re-risk is variant B, scale-in).
 
 ## 1. What changes, what does not
@@ -186,7 +186,7 @@ can, the delta is what it is, fractions are unchanged.
 3. `redeemAll()` convenience = `redeem(sharesOf(msg.sender))`.
 
 Shares are an internal ledger (`sharesOf`), **not** an ERC20, and are
-non-transferable in phase 1 — a deliberate scope cut (judgment call,
+non-transferable in Step 1 — a deliberate scope cut (judgment call,
 §8): transferability adds approval/allowance surface that the
 hackathon demo does not need, and the invariant proofs stay simpler.
 
@@ -273,7 +273,7 @@ path).
 3. **Guard actions operate on managed balances**, so the brain never
    trades surplus donations. V4 traded raw balances. (§3)
 4. **Shares are a non-transferable internal ledger**, not an ERC20,
-   in phase 1. (§4)
+   in Step 1. (§4)
 5. **Deposit values the safe leg through `swap.priceSource()`** — no
    new constructor wiring, and vault/desk price disagreement is
    impossible by construction; the cost is a deposit-time dependency

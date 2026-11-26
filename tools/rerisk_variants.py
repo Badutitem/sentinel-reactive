@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Re-risk variant evaluation harness (trio #5 follow-up).
+Re-risk variant evaluation harness (Release 5 follow-up).
 
 Builds a Python mirror of the FULL SentinelReactiveV4 + SentinelVaultV3 +
 SentinelSwapV2 stack — shipped v2 model inference (tools/train.py
@@ -10,7 +10,7 @@ and the fixed-price desk's exact integer math — then runs five re-risk
 trigger variants over real and synthetic price streams:
 
   OFF  re-risk disabled (the no-rerisk Sentinel baseline)
-  V1   shipped trio #5 rule: 100% buyback at >= 97% of the episode
+  V1   shipped Release 5 rule: 100% buyback at >= 97% of the episode
        anchor, >= 3 updates after the de-risk, one per episode, episode
        cancelled by a new anchor high above the episode anchor
   B    scale-in: 50% of the safe balance at the >= 97% reclaim (action

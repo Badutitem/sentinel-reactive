@@ -380,7 +380,7 @@ decides by relabelling it a pass.
   v1 functions unmodified; `python3 tools/train.py` still reproduces
   v1, `python3 tools/train.py v2` trains the candidate). Verified
   after all edits: shipped v1 weights still pass v1 acceptance, the
-  phase-1 mirror check still passes.
+  Release 1 mirror check still passes.
 - `src/model/SentinelWeightsV2.sol` — candidate weights (7→12→3),
   generated, not wired anywhere. Header carries the training metrics.
 - `tools/vectors_v2.json` — v2 canonical vectors + metrics.
@@ -1086,7 +1086,7 @@ if __name__ == "__main__":
 
 The candidate is now wired into a contract — still **not deployed, no
 transactions**. The shipped v1 system is untouched: `SentinelReactive.sol`,
-`SentinelModel.sol`, `SentinelWeights.sol` and every Demo A contract/test
+`SentinelModel.sol`, `SentinelWeights.sol` and every Release 1 contract/test
 are byte-identical to before (git confirms only additions).
 
 **Files added**
@@ -1181,15 +1181,15 @@ run are a separate phase, not done here.
 
 ---
 
-## Deployment (trio #3) — 2026-11-15
+## Deployment (Release 3) — 2026-11-15
 
 The v2 candidate is now **deployed and live-run**. Full record:
 `phase3-deploy-report.md` beside the phase-2B report in the goal's
 hidden_files; raw logs `phase3-driver.log`, `phase3-watcher.log`,
-`phase3-watcher-r2.log` alongside it. Trio #1 (Demo A) and trio #2
-(Demo B) untouched.
+`phase3-watcher-r2.log` alongside it. Release 1 and Release 2
+untouched.
 
-**Trio #3 (all Sourcify exact_match, creation + runtime):**
+**Release 3 (all Sourcify exact_match, creation + runtime):**
 
 | Contract | Chain | Address | Deploy tx |
 |---|---|---|---|
@@ -1198,13 +1198,13 @@ hidden_files; raw logs `phase3-driver.log`, `phase3-watcher.log`,
 | `SentinelVaultV2` #3 | Base Sepolia 84532 | `0x2942cc16F61516FDB24cF009dD07ca366a99abBc` | `0xd3649b186a297f4de33b7b86a01f8571eab32c8cf9c71dfab41fe0a102837cf7` |
 
 Constructor args exactly as this report's wiring section prescribed
-(oracle = the existing phase-2B adapter
+(oracle = the existing Release 2 adapter
 `0xAb9c7a5178B444cd1C1fD705e5eBeCf4b9A1C25F`, token = WETH, cooldown
 300). Wiring: `swap#3.setVault` `0xdddf77d0…b7fa49`,
 `reactiveV2.setVault` `0x44501d4f…508a01d9`, desk seeded with 1,000
 mUSDC (`0xd5f36ac5…da5751`), vault #3 armed with a 0.00004 WETH
 position (`0xf3b5e1a4…92d892902`) + 0.00004 ETH callback billing —
-both value transfers scaled down ~250× from phase 2B because the dev
+both value transfers scaled down ~250× from Release 2 because the dev
 wallet's Base Sepolia balance was 0.000139 ETH in total (report
 §8.3). Reactive funded with **0.272 lREACT** (0.20 at deploy + 0.072
 top-up `0xd4177f3e…96fec15`): the Lasna deploy alone charged
@@ -1241,7 +1241,7 @@ Vault #3 final: 0.00004 WETH / 0 mUSDC / 0.00004 ETH, `closed` false,
 `protectionCount` 0; swap #3 reserve 1,000 mUSDC intact.
 
 **Noted honestly:** v2's TRIM logit sat at ≈7.31–7.40 all window
-(v1's was ≈1.3–2.3 on comparable prints in phase 2B) — a different
+(v1's was ≈1.3–2.3 on comparable prints in Release 2) — a different
 raw calibration from the wider network; HOLD's margin never went
 below ≈6.0 and EXIT stayed ≤ −16.1, so argmax behaviour on live data
 matched v1's exactly. A longer v2 window, or a dust-position top-up,

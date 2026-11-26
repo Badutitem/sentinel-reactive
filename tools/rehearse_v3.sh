@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Live testnet rehearsal driver for Sentinel trio #4 (SentinelReactiveV3,
-# mock origin). Pushes the mirror-validated price series into the trio
+# Live testnet rehearsal driver for Sentinel Release 4 (SentinelReactiveV3,
+# mock origin). Pushes the mirror-validated price series into the Release
 # #4 rehearsal MockPriceOracle on Base Sepolia and waits for the Lasna
 # reactive to ingest each push before continuing:
 #   Stage A calm x5            -> HOLD, no callbacks
@@ -11,7 +11,7 @@
 #   --- re-arm: deposit a fresh position on the rehearsal vault ---
 #   Stage C recovery x4        -> new high, no votes
 #   Stage C decline -3%/step x8-> HOLD x7 (the still-open V-recovery
-#                                 blind window, TRIO4.md), EXIT at
+#                                 blind window, RELEASE4.md), EXIT at
 #                                 step 8 fires inside stage B's old
 #                                 cooldown (re-arm after EXIT reset)
 # Required env: ORACLE, REACTIVE, VAULT, TOKEN, PRIVATE_KEY via

@@ -340,7 +340,10 @@ async function connect(){
     $("btn-refresh-shares").disabled = false;
     log("Wallet connected: " + account + " (" + chainNote + ").");
     await refreshBalances();
-    await refreshShares();
+    // Release 8 (LD-2): connect succeeds even if the share read fails —
+    // the failure is shown in the shares panel, not misreported as a
+    // failed connect.
+    await refreshShares().catch(() => {});
   }catch(e){
     log("Connect failed: " + (e.message || e));
   }
@@ -390,6 +393,10 @@ async function refreshShares(){
   }catch(e){
     $("s-shares").innerHTML = '<span class="unavail">unavailable</span>';
     log("Share read failed — the RPC endpoints did not answer. Try Refresh shares.");
+    // Release 8 (LD-2): propagate the failure instead of leaving the
+    // previous myShares in place for a caller to act on. Callers that can
+    // proceed without fresh shares catch this themselves; runRedeem aborts.
+    throw e;
   }
 }
 
@@ -397,7 +404,12 @@ let redeeming = false;
 async function runRedeem(all){
   if(redeeming) return;
   if(!account){ log("Connect your wallet first (step 1)."); return; }
-  await refreshShares();
+  // Release 8 (LD-2): abort the redeem when the fresh share read fails —
+  // never redeem on a stale myShares value.
+  try{ await refreshShares(); }catch(e){
+    log("Could not read your shares — the redeem is aborted, nothing was sent. Try Refresh shares.");
+    return;
+  }
   if(myShares <= 0n){ log("You hold no shares to redeem."); return; }
   let shares = myShares;
   if(!all){
@@ -446,8 +458,12 @@ function stepSkip(id, why){ setStep(id, "not needed — " + why); }
 function stepFail(id, why){ setStep(id, '<span class="bad">failed</span> — ' + why); }
 
 async function sendTx(to, data, valueWei){
+  // Release 8 (LD-1): re-check the chain immediately before every send,
+  // and pin the chain on the transaction itself — a mid-flow chain switch
+  // can no longer land the tx on the wrong network.
+  await ensureChain();
   return await window.ethereum.request({method:"eth_sendTransaction",
-    params:[{from: account, to: to, data: data, value: "0x" + valueWei.toString(16)}]});
+    params:[{from: account, to: to, data: data, value: "0x" + valueWei.toString(16), chainId: CHAIN_HEX}]});
 }
 async function waitReceipt(hash){
   for(let i = 0; i < 90; i++){
@@ -458,6 +474,14 @@ async function waitReceipt(hash){
       return r;
     }
     await new Promise(res => setTimeout(res, 2000));
+  }
+  // Release 8 (LD-3): one last receipt check — it may have landed just
+  // after the final poll; never leave the UI stale on a race like that.
+  let r = null;
+  try{ r = await rpc("eth_getTransactionReceipt", [hash]); }catch(e){ /* give up below */ }
+  if(r){
+    if(r.status !== "0x1") throw new Error("the transaction failed on-chain");
+    return r;
   }
   throw new Error("no receipt seen in time — check the tx link on BaseScan");
 }
@@ -596,7 +620,7 @@ $("btn-refresh-bal").addEventListener("click", refreshBalances);
 $("btn-deposit").addEventListener("click", runDeposit);
 $("btn-redeem").addEventListener("click", () => runRedeem(false));
 $("btn-redeem-all").addEventListener("click", () => runRedeem(true));
-$("btn-refresh-shares").addEventListener("click", refreshShares);
+$("btn-refresh-shares").addEventListener("click", () => { refreshShares().catch(() => {}); });
 $("btn-refresh-vault").addEventListener("click", refreshVault);
 if(hasWallet() && window.ethereum.on){
   window.ethereum.on("accountsChanged", accs => {

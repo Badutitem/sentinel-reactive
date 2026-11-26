@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.29;
 
-/// @notice Minimal ERC20 surface used by the phase-2 contracts.
+/// @notice Minimal ERC20 surface used by the Release 1 contracts.
 interface IERC20 {
     function balanceOf(address account) external view returns (uint256);
     function transfer(address to, uint256 amount) external returns (bool);
@@ -15,13 +15,14 @@ interface IERC20Metadata {
 }
 
 /// @notice Price-source surface: the exact view MockPriceOracle already
-///         exposes. The Chainlink adapter (phase 2, upgrade B) exposes the
+///         exposes. The Chainlink adapter (Release 2, upgrade B) exposes the
 ///         same view, so one swap contract serves both demos.
 interface IPriceSource {
     function latestPrice(address token) external view returns (uint256);
+    function priceUpdatedAt(address token) external view returns (uint256);
 }
 
-/// @title SentinelSwapV2 — two-way fixed-price OTC desk (trio #5 candidate).
+/// @title SentinelSwapV2 — two-way fixed-price OTC desk (Release 5 candidate).
 /// @notice SentinelSwap (V1) plus the reverse direction the re-risk feature
 ///         needs: `swapSafeForRisk` sells the vault's safe asset back into
 ///         the risk asset at the same reference price, paying out of the
@@ -42,6 +43,11 @@ interface IPriceSource {
 contract SentinelSwapV2 {
     /// @notice Prices are 18-decimal USD (e.g. $2,000 = 2000e18).
     uint256 public constant PRICE_SCALE = 1e18;
+    /// @notice Maximum age of the reference price a fill or deposit will
+    ///         accept (seconds). Matches the Chainlink adapter's own
+    ///         `maxStaleness`: a consumer must not trade on data older
+    ///         than the relay itself deems unfit.
+    uint256 public constant MAX_PRICE_AGE = 3600;
 
     IERC20 public immutable riskAsset;
     IERC20 public immutable safeAsset;
@@ -57,9 +63,11 @@ contract SentinelSwapV2 {
     event ReserveShortfall(uint256 riskRequested, uint256 riskFilled);
     event SwappedReverse(uint256 safeFilled, uint256 riskOut, uint256 price);
     event RiskShortfall(uint256 safeRequested, uint256 safeFilled);
+    event StalePriceRefused(uint256 ageSeconds, uint256 boundSeconds);
 
     error NotOwner(address caller);
     error NotVault(address caller);
+    error StalePrice(uint256 ageSeconds);
 
     constructor(address riskAsset_, address safeAsset_, address priceSource_, address vault_) {
         riskAsset = IERC20(riskAsset_);
@@ -97,6 +105,17 @@ contract SentinelSwapV2 {
         return riskAsset.balanceOf(address(this));
     }
 
+    /// @notice Age of the reference price in seconds. A source that never
+    ///         pushed yields the full `block.timestamp` (i.e. stale).
+    function priceAge() public view returns (uint256) {
+        return block.timestamp - priceSource.priceUpdatedAt(address(riskAsset));
+    }
+
+    /// @notice True when the reference price is older than `MAX_PRICE_AGE`.
+    function priceStale() external view returns (bool) {
+        return priceAge() > MAX_PRICE_AGE;
+    }
+
     /// @notice Buys `riskIn` of the risk asset from the vault at the current
     ///         reference price, paying the safe asset out of the reserve.
     /// @dev Never reverts on a short reserve: it fills only what the reserve
@@ -106,6 +125,11 @@ contract SentinelSwapV2 {
     ///      safeOut = riskIn * price * 10^safeDec / (10^riskDec * PRICE_SCALE)
     function swapRiskForSafe(uint256 riskIn) external onlyVault returns (uint256 safeOut) {
         if (riskIn == 0) return 0;
+        uint256 age = priceAge();
+        if (age > MAX_PRICE_AGE) {
+            emit StalePriceRefused(age, MAX_PRICE_AGE);
+            return 0; // Stale price: refuse the fill, never revert a callback.
+        }
         uint256 price = priceSource.latestPrice(address(riskAsset));
         if (price == 0) return 0; // No reference price: move nothing, never revert a callback.
 
@@ -144,6 +168,11 @@ contract SentinelSwapV2 {
     ///      riskOut = safeIn * 10^riskDec * PRICE_SCALE / (price * 10^safeDec)
     function swapSafeForRisk(uint256 safeIn) external onlyVault returns (uint256 riskOut) {
         if (safeIn == 0) return 0;
+        uint256 age = priceAge();
+        if (age > MAX_PRICE_AGE) {
+            emit StalePriceRefused(age, MAX_PRICE_AGE);
+            return 0; // Stale price: refuse the fill, never revert a callback.
+        }
         uint256 price = priceSource.latestPrice(address(riskAsset));
         if (price == 0) return 0; // No reference price: move nothing, never revert a callback.
 

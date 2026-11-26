@@ -6,10 +6,10 @@ import {IReactive} from "@reactive/src/interfaces/IReactive.sol";
 import {ISystemContract} from "@reactive/src/interfaces/ISystemContract.sol";
 import {SentinelModelV2} from "./model/SentinelModelV2.sol";
 
-/// @title SentinelReactiveV4 — the re-risk release (trio #5 candidate, LOCAL ONLY).
+/// @title SentinelReactiveV4 — the re-risk release (Release 5 candidate, LOCAL ONLY).
 /// @notice SentinelReactiveV3 (dedup + TRIM suppression + shipped v2
 ///         weights, unchanged) plus ONE new mechanism, RE-RISK: closing
-///         the one structural gap the trio #4 system had against two-way
+///         the one structural gap the Release 4 system had against two-way
 ///         rivals — after a de-risk, Sentinel could never get back in.
 ///         The trigger is RULE-BASED, not model-based: the neural model
 ///         and its weights are untouched, and the episode machine below
@@ -53,7 +53,7 @@ import {SentinelModelV2} from "./model/SentinelModelV2.sol";
 ///           reactive transactions; a contract in debt receives nothing),
 ///        2. deploy SentinelVaultV3 with this contract's address,
 ///        3. call `setVault` here so callbacks have a recipient.
-///      Intended deployment (trio #5, NOT deployed — local candidate):
+///      Intended deployment (Release 5, NOT deployed — local candidate):
 ///      origin = Base Sepolia, oracle = the ChainlinkPriceAdapter (which
 ///      re-emits PriceUpdated keyed to real WETH), token = WETH,
 ///      cooldown = 300 s.

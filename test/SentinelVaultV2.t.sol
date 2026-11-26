@@ -183,7 +183,7 @@ contract SentinelVaultV2Test is Test {
 
 /// @notice End-to-end: the full loop (oracle event -> reactive inference ->
 ///         network-style callback delivery) against VaultV2, asserting that
-///         ERC20 balances actually move — the phase-2 upgrade over the V1
+///         ERC20 balances actually move — the Release 1 upgrade over the V1
 ///         counter-only proof. Prices use the 18-decimal USD convention the
 ///         swap desk prices with; the model's ratio features are scale-free.
 contract SentinelVaultV2EndToEndTest is Test {

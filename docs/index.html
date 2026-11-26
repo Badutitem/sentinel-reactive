@@ -93,7 +93,7 @@
 <p class="h2sub">The current release. The brain runs on the Reactive Lasna testnet; the vault it
 protects sits on Base Sepolia. Prices come from the real Chainlink ETH/USD feed. The vault is a
 <b>per-user pool</b>: anyone can deposit WETH for shares and redeem their own slice at any time —
-try it in the <a href="app.html">demo app</a>. The previous flagship set (the trio #5 contracts)
+try it in the <a href="app.html">demo app</a>. The previous flagship set (the Release 5 contracts)
 stays live and untouched as the previous generation.</p>
 
 <div class="grid">
@@ -142,7 +142,8 @@ prices and holds.</p>
 <p class="h2sub">Same contract code as the live system, driven end-to-end on a <b>mock price oracle</b>
 (testnet rehearsal, 25 Nov 2026): a full fall, a two-step buy-back, and a second fall — with three
 users depositing and redeeming shares through the pool. This is the firing proof — the live system's
-feed simply hasn't fallen yet.</p>
+feed simply hasn't fallen yet. A second, parallel live-firing set — Release 7, below — fired the
+same June 2022 crash end-to-end on its own fresh set.</p>
 
 <div class="note" style="margin-bottom:14px">
   <b>Read live from the rehearsal contracts right now:</b>
@@ -157,6 +158,69 @@ feed simply hasn't fallen yet.</p>
 
 <div class="tl" id="timeline"></div>
 
+<h2>Release 7 — the live set fired end-to-end</h2>
+<p class="h2sub">A parallel set, deployed fresh for Release 7 and driven on the same June 2022 crash
+replay as the rehearsal above (26–27 Nov 2026, 56 pushes, ~73 minutes). The brain fired TRIM five
+times and EXIT once, the vault sold and closed, and three users redeemed in full — reconciled to
+the wei. Honest labelling: the price path is a <b>replay</b> of Binance ETHUSDT hourly closes,
+pushed through a mock oracle — not the Chainlink feed. The flagship above stays the primary live
+system; this set is run-complete.</p>
+
+<div class="note" style="margin-bottom:14px">
+  <b>Release 7 live set (recorded 27 Nov 2026):</b>
+  brain <a href="https://lasna.reactscan.net/address/0x31414A31674d1E138C0Dce0FA04828229DE22FC9" target="_blank" rel="noopener">0x31414A…</a> ·
+  vault <a href="https://sepolia.basescan.org/address/0xF2Fda1aCEb36a95136eCDA6707C7CDc96D105068" target="_blank" rel="noopener">0xF2Fda1…</a> ·
+  oracle <a href="https://sepolia.basescan.org/address/0x9960575DB4681bC5c02cBa4A7248633aFE897f9d" target="_blank" rel="noopener">0x996057…</a> ·
+  desk <a href="https://sepolia.basescan.org/address/0x23484EC173816395494492f0677f9DB985B73111" target="_blank" rel="noopener">0x23484E…</a><br>
+  56 price updates ingested · 6 protection callbacks — TRIM@9/21/32/44/55, EXIT@56 · vault closed,
+  shares 0, managed 0/0 — clean reset · final payouts 2.926934955370680890 + 2.926934955370680890 +
+  2.132596839258638220 = 7.98646675 mUSDC, exactly the pre-sequence managed safe balance.
+  Brain fuel left after the run: 0.0528998 lREACT — topped up 27 Nov to 2.1528998 lREACT (run-complete — no further firing planned).
+</div>
+
+<div class="tl">
+  <div class="step TRIM"><span class="act TRIM">TRIM@9</span> <span style="color:var(--faint)">· price update #9 · 11 Jun 2022 08:00 UTC</span>
+  <p>First fire of the live set: sold half the pool, 0.0015 WETH → 2.367285 mUSDC at $1,578.19, anchor drawdown 5.5%.</p>
+  <div class="links">origin tx: <a href="https://sepolia.basescan.org/tx/0x0487f95b92deed3860ebd7a2106fd3dc86b324fd297f6ff79c00f7f217f6b888" target="_blank" rel="noopener">0x0487f95b…f6b888</a> ·
+  reaction tx: <a href="https://lasna.reactscan.net/tx/0x31e13572ae3a19450da4956ed9837471492b73111d26ae18a6ffc6ab4456d7a5" target="_blank" rel="noopener">0x31e13572…456d7a5</a></div></div>
+  <div class="step TRIM"><span class="act TRIM">TRIM@21/32/44/55</span> <span style="color:var(--faint)">· price updates #21/32/44/55</span>
+  <p>Four more TRIMs as the crash deepened ($1,523.34 → $1,471.26 → $1,479.59 → $1,324.35); 30 repeat TRIM votes suppressed by the episode machine. Full per-push origin + reaction txs in the repo's release record.</p></div>
+  <div class="step EXIT"><span class="act EXIT">EXIT@56</span> <span style="color:var(--faint)">· price update #56 · 13 Jun 2022 07:00 UTC</span>
+  <p>Sold the rest at $1,283.46: 0.000925 WETH → 1.1872005 mUSDC, anchor drawdown 19.5%. Pool closed; all three users then redeemed in full, payouts identical for equal shares.</p>
+  <div class="links">origin tx: <a href="https://sepolia.basescan.org/tx/0x301281b73877d4f663ad622d8a0adf2bd68f249df8cdedb06c4c6b15a438eef2" target="_blank" rel="noopener">0x301281b7…38eef2</a> ·
+  reaction tx: <a href="https://lasna.reactscan.net/tx/0xd66ef07fe89a7863197e32df1ebf613636180c6ea1a3fc1952782666877e7c32" target="_blank" rel="noopener">0xd66ef07f…e7e7c32</a></div></div>
+</div>
+
+<h2>Release 8 — live set deployed 27 Nov, rehearsal passed</h2>
+<p class="h2sub">A fresh set built from the fixed contract code (audit fixes F1–F5 plus the promoted
+L3/L8 fixes: allowlisted oracle, deposit deviation guard, staleness bound, cooldown-gated
+repeat EXITs), rehearsed end-to-end on the same June 2022 crash replay as Release 7
+(26–27 Nov 2026, 56 pushes). <b>Live set below, deployed 27 Nov 06:02–06:04 WIB</b> —
+seeded 0.002 WETH 1:1, desk 1,000 mUSDC, all four contracts Sourcify exact_match. The
+rehearsal set underneath is the proof it works.</p>
+
+<div class="note" style="margin-bottom:14px">
+  <b>Release 8 live set (deployed 27 Nov 2026):</b>
+  brain <a href="https://lasna.reactscan.net/address/0x2C1d278d31d52Ec8405cF33E319ba0eB8C6b0d1F" target="_blank" rel="noopener">0x2C1d27…</a> ·
+  vault <a href="https://sepolia.basescan.org/address/0x86b551AF1D8A5c0c2767Bf8Bb53F1F8bAeC74e18" target="_blank" rel="noopener">0x86b551…</a> ·
+  oracle <a href="https://sepolia.basescan.org/address/0x9380ee21a8C00f9FB42346F63E28BCf1B847de4F" target="_blank" rel="noopener">0x9380ee…</a> ·
+  desk <a href="https://sepolia.basescan.org/address/0xBDF3e24a673016dcCB00f7CA489456e3fa2d7D41" target="_blank" rel="noopener">0xBDF3e2…</a><br>
+  <b>Release 8 rehearsal set (recorded 27 Nov 2026) — REHEARSAL PASS:</b>
+  brain <a href="https://lasna.reactscan.net/address/0x81709d3C667f67562349ce8e0971ba238Ef0cCc8" target="_blank" rel="noopener">0x81709d…</a> ·
+  vault <a href="https://sepolia.basescan.org/address/0x7E20bf60316e978f73eDeA2290b571C5633E0131" target="_blank" rel="noopener">0x7E20bf…</a> ·
+  oracle <a href="https://sepolia.basescan.org/address/0x4e2DFac734D63AA391edE6556e374c2da69c7BA5" target="_blank" rel="noopener">0x4e2DFa…</a> ·
+  desk <a href="https://sepolia.basescan.org/address/0xCf5d79A28f2ACd2E340780e12D1E5eb8D94409f8" target="_blank" rel="noopener">0xCf5d79…</a><br>
+  56 price updates ingested · 6 protection callbacks — TRIM@9/21/32/44/55, EXIT@56 ·
+  mirror-exact (votes 18/35/1, 30 suppressed TRIMs, episode anchors to the wei) · vault
+  closed, shares 0, managed 0/0 — clean reset · final payouts 7.98646675 mUSDC, exactly
+  the pre-sequence managed safe balance · brain fuel left 0.252192 lREACT.<br>
+  Pre-drive attacks all failed as required: the 100x pump, the fake crash, the zero price
+  and the never-pushed stale source — every stranger push reverted, no theft, no exit
+  fired, stale fills refused. Post-drive attacks PASS 26 Nov 22:56–22:57 UTC: both swap
+  directions refused after a genuine 3600 s halt, and a zero-price print was consumed
+  without bricking the brain (56 → 57 on the next legitimate price).
+</div>
+
 <h2>Measured in testing</h2>
 <p class="h2sub">Two results from the repo's own records. Unlike the numbers above, these do not
 change — they were measured once, in testing, and are written here exactly as measured.</p>
@@ -166,10 +230,10 @@ change — they were measured once, in testing, and are written here exactly as 
     <h3>The model, measured</h3>
     <p class="role">What the brain's decisions are worth, on data it never trained on</p>
     <table class="kv">
-      <tr><td class="k">Weights the live trios run</td><td class="v">model v2</td></tr>
+      <tr><td class="k">Weights the live system runs</td><td class="v">model v2</td></tr>
       <tr><td class="k">Held-out accuracy (6,001 unseen windows)</td><td class="v">95.41%</td></tr>
       <tr><td class="k">Per class — HOLD / TRIM / EXIT</td><td class="v">93.8% / 95.6% / 99.4%</td></tr>
-      <tr><td class="k">Contract test suite</td><td class="v">165/165 passing</td></tr>
+      <tr><td class="k">Contract test suite</td><td class="v">190/190 passing</td></tr>
     </table>
     <p style="color:var(--dim);font-size:14px;margin:12px 0 0">Accuracy here means agreement with the
     hand-written stop-loss policy that labelled the training data, on synthetic price series the
@@ -286,7 +350,7 @@ const fmtTok = (wei, sym, maxDp=6) => {
   return v.toLocaleString("en-US",{minimumFractionDigits:0, maximumFractionDigits:maxDp}) + (sym ? " "+sym : "");
 };
 const fmtPrice = raw => "$" + (Number(raw)/1e18).toLocaleString("en-US",{minimumFractionDigits:2, maximumFractionDigits:2});
-const fmtTs = ts => new Date(ts*1000).toLocaleString("en-GB",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}) + " UTC";
+const fmtTs = ts => new Date(ts*1000).toLocaleString("en-GB",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",timeZone:"UTC"}) + " UTC";
 const short = h => h.slice(0,10) + "…" + h.slice(-6);
 function setField(name, html){
   document.querySelectorAll('[data-f="'+name+'"]').forEach(el => el.innerHTML = html);

@@ -13,7 +13,7 @@ interface IAggregatorV3 {
 }
 
 /// @title ChainlinkPriceAdapter — origin-chain adapter from a real Chainlink
-///        feed to Sentinel's `PriceUpdated` event (phase 2, upgrade B).
+///        feed to Sentinel's `PriceUpdated` event (Release 2, upgrade B).
 /// @notice Polls the Chainlink ETH/USD proxy on Base Sepolia via
 ///         `latestRoundData()` and re-emits the **identical**
 ///         `PriceUpdated(address indexed token, uint256 price, uint256 updatedAt)`
@@ -125,6 +125,12 @@ contract ChainlinkPriceAdapter {
     ///      `SentinelSwap` can price off this adapter unchanged.
     function latestPrice(address token_) external view returns (uint256) {
         return token_ == token ? lastPrice : 0;
+    }
+
+    /// @notice Block timestamp of the last emission for `token_` (0 for any
+    ///         other token, or before the first successful sync).
+    function priceUpdatedAt(address token_) external view returns (uint256) {
+        return token_ == token ? lastEmittedAt : 0;
     }
 
     /// @notice True if `price` differs from the last emitted price by at

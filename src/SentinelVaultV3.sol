@@ -5,7 +5,7 @@ import {AbstractCallback} from "@reactive/src/base/AbstractCallback.sol";
 import {IPayable} from "@reactive/src/interfaces/IPayable.sol";
 import {IERC20, SentinelSwapV2} from "./SentinelSwapV2.sol";
 
-/// @title SentinelVaultV3 — destination-chain vault with re-risk (trio #5 candidate).
+/// @title SentinelVaultV3 — destination-chain vault with re-risk (Release 5 candidate).
 /// @notice SentinelVaultV2 plus one new callback action, RERISK (3): after
 ///         a TRIM or EXIT de-risked the position into the safe asset, a
 ///         re-risk callback spends the vault's ENTIRE safe balance back

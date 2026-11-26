@@ -3,7 +3,7 @@
 Off-chain tooling. Nothing in here is part of the running system — the model
 runs fully on-chain; these tools only *produce* its weights.
 
-## Phase 2: `train.py` (done — this is how the shipped weights were made)
+## Release 1: `train.py` (done — this is how the shipped weights were made)
 
 ```bash
 python3 tools/train.py   # numpy only; seeded, byte-reproducible output
@@ -13,9 +13,9 @@ What it does:
 
 1. **Mirror proof first.** Before training, it verifies its integer Python
    reference (features + forward pass, trunc-toward-zero division) bit-for-bit
-   against the phase-1 Solidity behaviour (the exact logits/hidden values and
+   against the Release 1 Solidity behaviour (the exact logits/hidden values and
    crash-path features/scores pinned in the Foundry tests, using a frozen copy
-   of the phase-1 weights). Any drift aborts the run.
+   of the Release 1 weights). Any drift aborts the run.
 2. Generates synthetic price series (calm, uptrend, chop, grind-down, crash,
    V-recovery), slides the on-chain window over them exactly like
    `SentinelReactive` does, computes the same six integer features as
@@ -28,7 +28,7 @@ What it does:
    (standard vectors + the Foundry tests' price paths), a short
    quantization-aware fine-tune (straight-through estimator) runs until it
    passes.
-4. Regenerates `src/model/SentinelWeights.sol` in the phase-1 codegen format
+4. Regenerates `src/model/SentinelWeights.sol` in the Release 1 codegen format
    (training metrics in the header comment) and writes `tools/vectors.json`
    with the fresh expected logits/scores used to re-pin the Foundry tests.
 

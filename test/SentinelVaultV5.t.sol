@@ -129,6 +129,10 @@ contract SentinelVaultV5Test is Test {
     /// @notice A deposit too small to mint even one share (against a
     ///         pool whose per-share value ballooned after a price
     ///         crash) reverts instead of donating itself to the pool.
+    ///         Release 8 (F1-B): the price here ($1 vs the $2000 anchor)
+    ///         is far outside the 50% deviation band, so the deviation
+    ///         guard now fires first — the deposit still reverts rather
+    ///         than donating, with `PriceDeviation` instead of `ZeroShares`.
     function testDustDepositMintingZeroSharesReverts() public {
         _fund(alice, 1 ether);
         _deposit(alice, 1 ether);
@@ -138,7 +142,7 @@ contract SentinelVaultV5Test is Test {
         oracle.setPrice(address(weth), 1e18); // $1: the pool is now "worth" 2,000 WETH
         _fund(bob, 1);
         vm.prank(bob);
-        vm.expectRevert(SentinelVaultV5.ZeroShares.selector);
+        vm.expectRevert(abi.encodeWithSignature("PriceDeviation(uint256,uint256)", 1e18, 2000e18));
         vault.deposit(1);
     }
 
@@ -260,25 +264,37 @@ contract SentinelVaultV5Test is Test {
     }
 
     /// @notice The safe leg is valued at the CURRENT desk price: after
-    ///         the price doubles, the same USDC pool is worth half as
-    ///         much WETH, so the same deposit mints twice the shares.
+    ///         the price rises 25%, the same USDC pool is worth less WETH,
+    ///         so the same deposit mints more shares.
+    ///         Release 8 (F1-B): a deposit more than 50% from the last
+    ///         settled price reverts `PriceDeviation` — the old 2x case
+    ///         in this test now reverts instead of minting double shares.
     function testDepositValuesSafeLegAtCurrentPrice() public {
         _fund(alice, 10 ether);
         _deposit(alice, 10 ether);
         _callback(EXIT); // 20,000 USDC pool, 10 shares
 
-        oracle.setPrice(address(weth), 4000e18);
-        _fund(bob, 5 ether);
-        uint256 shares = _deposit(bob, 5 ether); // poolRiskEq = 20,000 / 4,000 = 5
-        assertEq(shares, 10 ether, "5 WETH against a 5-WETH-equivalent pool doubles the share count");
+        _fund(bob, 13 ether);
+        oracle.setPrice(address(weth), 4000e18); // +100%: outside the 50% band
+        vm.prank(bob);
+        vm.expectRevert(abi.encodeWithSignature("PriceDeviation(uint256,uint256)", 4000e18, 2000e18));
+        vault.deposit(5 ether);
+
+        oracle.setPrice(address(weth), 2500e18); // +25%: inside the band
+        uint256 shares = _deposit(bob, 8 ether); // poolRiskEq = 20,000 / 2,500 = 8
+        assertEq(shares, 10 ether, "8 WETH against an 8-WETH-equivalent pool");
         (uint256 bRisk, uint256 bSafe) = vault.claimOf(bob);
-        assertEq(bRisk, 2.5 ether, "half of the 5 WETH pool, exact in wei");
+        assertEq(bRisk, 4 ether, "half of the 8 WETH pool, exact in wei");
         assertEq(bSafe, 10_000 ether, "bob owns half the safe leg");
     }
 
     /// @notice Price-0 handling: deposits into a risk-only pool never
     ///         consult the price; deposits into a MIXED pool revert
     ///         (the safe leg cannot be valued); redemptions still work.
+    ///         Release 8 (F1-B): with an anchor set by the TRIM fill, a
+    ///         $0 price is outside the 50% deviation band, so the
+    ///         deviation guard now fires first (`PriceDeviation` instead
+    ///         of `NoReferencePrice`) — the deposit still reverts.
     function testZeroPriceDepositRules() public {
         oracle.setPrice(address(weth), 0);
         _fund(alice, 10 ether);
@@ -290,7 +306,7 @@ contract SentinelVaultV5Test is Test {
         oracle.setPrice(address(weth), 0);
         _fund(bob, 1 ether);
         vm.prank(bob);
-        vm.expectRevert(SentinelVaultV5.NoReferencePrice.selector);
+        vm.expectRevert(abi.encodeWithSignature("PriceDeviation(uint256,uint256)", 0, 2000e18));
         vault.deposit(1 ether);
 
         vm.prank(alice);
@@ -381,7 +397,7 @@ contract SentinelVaultV5Test is Test {
 
     // --- exact reconciliation (INV-3) -------------------------------------------------------
 
-    /// @notice The full trio-#5-shaped cycle with three users entering
+    /// @notice The full Release-5-shaped cycle with three users entering
     ///         at different times and prices, both re-risk tranches and
     ///         a second TRIM, then a mixed full/partial redemption
     ///         sequence: every wei of the managed totals is paid out,

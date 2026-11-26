@@ -4,16 +4,16 @@ One page where every public claim about Sentinel can be checked: contract
 addresses, verification links, the transaction chains that prove the live
 loop, rehearsal results, model metrics with their method, test counts, fuel
 status, and the honest limits. Compiled 2026-11-19 from the deploy records
-in [DEVLOG.md](DEVLOG.md) and the phase reports; on-chain figures in the
+in [DEVLOG.md](DEVLOG.md) and the release reports; on-chain figures in the
 fuel section were read back live on that date.
 
 Explorers: Base Sepolia — https://sepolia.basescan.org ·
 Reactive Lasna — https://lasna.reactscan.net ·
 Sourcify lookup — https://sourcify.dev/#/lookup/&lt;address&gt;
 
-## 1. Deployed contracts — three trios, all Sourcify-verified (exact match)
+## 1. Deployed contracts — three releases, all Sourcify-verified (exact match)
 
-### Trio #1 — Demo A (MockPriceOracle origin, model v1, 2026-11-13)
+### Release 1 (MockPriceOracle origin, model v1, 2026-11-13)
 
 | Contract | Chain | Address | Deploy tx |
 |----------|-------|---------|-----------|
@@ -21,7 +21,7 @@ Sourcify lookup — https://sourcify.dev/#/lookup/&lt;address&gt;
 | `SentinelReactive` | Lasna (5318007) | `0xB828F2F6266E4A1705224ac0b1fCDFE0415351ee` | `0x1349cd6d58fdda0c2a15fee36549d3b25e566988e374ca782445c268b058e563` |
 | `SentinelVault` | Base Sepolia (84532) | `0x6f723a2F0E4A45111F42A74448426AAAAb3d7641` | `0x389f8694cbc967cd6076355271a430ffd19633ee7ec9c8ec00b28af670ea547f` |
 
-Phase-2 real-asset upgrade (same lineage, 2026-11-15):
+Release 1 real-asset upgrade (same lineage, 2026-11-15):
 
 | Contract | Chain | Address | Deploy tx |
 |----------|-------|---------|-----------|
@@ -29,7 +29,7 @@ Phase-2 real-asset upgrade (same lineage, 2026-11-15):
 | `SentinelSwap` | Base Sepolia (84532) | `0x2C1d278d31d52Ec8405cF33E319ba0eB8C6b0d1F` | `0x31a88186cb276fe19e046283b8d745982b7775e5602d25648dd0c779dc08e3ea` |
 | `SentinelVaultV2` | Base Sepolia (84532) | `0x29c0b2FAc813e59E23E12b8f6699bF17d4512192` | `0x1907efc0c1b346ec1d1405b8ae8321022f14502dd401d1fedf6e264139826922` |
 
-### Trio #2 — Demo B (real Chainlink ETH/USD origin, model v1, 2026-11-15)
+### Release 2 (real Chainlink ETH/USD origin, model v1, 2026-11-15)
 
 | Contract | Chain | Address | Deploy tx |
 |----------|-------|---------|-----------|
@@ -38,7 +38,7 @@ Phase-2 real-asset upgrade (same lineage, 2026-11-15):
 | `SentinelReactive` (#2) | Lasna (5318007) | `0x92ea50b0De053BE2D7FA6F73853aC403364c9330` | `0xd1728c9618599bdefa0698d3cd1dd3a5174d0c3259bd6543242daab45842429d` |
 | `SentinelVaultV2` (#2) | Base Sepolia (84532) | `0x41e86278264C0C4FB83e5328329ff6F459Ba3dF4` | `0xdb2c6b1e77b9c2eba4ab5e149018ed0430ec08027b228bb2e1be467cafe5f5fe` |
 
-### Trio #3 — model v2, anchor-aware (Chainlink origin, 2026-11-15) — the current live set
+### Release 3 — model v2, anchor-aware (Chainlink origin, 2026-11-15) — the current live set
 
 | Contract | Chain | Address | Deploy tx |
 |----------|-------|---------|-----------|
@@ -52,7 +52,7 @@ and 5318007).
 
 ## 2. Live-loop proof (origin tx → reactive tx → callback tx)
 
-**Phase 1 rehearsal** (30 oracle pushes → 30 reactive txs → 2 callbacks,
+**Release 1 rehearsal — mock position** (30 oracle pushes → 30 reactive txs → 2 callbacks,
 full loop ≈ 2 s):
 
 - Calm: 7 decisions, all HOLD, zero callbacks, position untouched.
@@ -63,7 +63,7 @@ full loop ≈ 2 s):
   → reactive `0x42cf48c375a3453ff09410d8fecc5b7f64ebad8e8925f8596213e0b9ce1400c2`
   → callback `0x1d506a0077b046cf043e303635f5f118800f7b0c7661a172207918c6946d40d7`
 
-**Phase 2 rehearsal** (real ERC20 transfers inside the callbacks):
+**Release 1 rehearsal — real tokens** (real ERC20 transfers inside the callbacks):
 
 - Grind → **TRIM**: origin `0xa1c46ea2b9fbd2bc70ee0e4fd946cec200a643582a287f12171b377018f31c4a`
   → reactive `0x00fc5e4537786544f1a9a6ca6a8d7ad17d8c63d836e6fa05bccf441fd2d30d10`
@@ -72,7 +72,7 @@ full loop ≈ 2 s):
   → reactive `0xfe39a88434271543356c988fa70fd256946a68d6cba0ee19a49fe3492715af60`
   → callback `0xa55c9079d19bb55ff6e69f992bc2e7fea56a8aa12747d3b1ed9f7f9f0e3c14d2`
 
-**Phase 2B — first real Chainlink price in the model:** adapter first
+**Release 2 — first real Chainlink price in the model:** adapter first
 `sync()` `0x5c82ed22b9d4f957f1bfd0246284451b7a0db29887fa005f37323bf73c5da80f`
 emitted $1,835.12571218; reactive #2 ingested it in
 `0xfc4e70a88736c6d4abb46910575f84cc62e928b32af38770c07c8e3bc6546026`.
@@ -81,22 +81,22 @@ real −1.4% slide (first `0xaee9b392ee899d16211bbfdf1e5cd08d1832919ab34449939c7
 most-stressed `0xd1b009add072e00304faa2091c72ac1d3a041317cf0d2acdf16f7ca8141216a3`,
 last `0x42f7dd4451ffdcfc2be273fe7909efc0bae5fb0f77c2e623c1a0f03aafd7747d`).
 
-**Phase 3 (trio #3) live window:** 13 syncs → 8 emissions → 6 Decisions,
+**Release 3 live window:** 13 syncs → 8 emissions → 6 Decisions,
 all HOLD on a flat $1,812–$1,818 tape (correct output; no firing can be
-forced on this trio), with the anchor verified bit-exact on-chain (peak
+forced on this release), with the anchor verified bit-exact on-chain (peak
 tracked the $1,815.1845 high, decayed to the wei on the next print, live
 anchorDrawdown feature 556 = 0.0556%).
 
 ## 3. Rehearsal results
 
-- Phase 1 (mock position): **1,000 → 500** on TRIM, **→ 0** on EXIT, vault
+- Release 1 (mock position): **1,000 → 500** on TRIM, **→ 0** on EXIT, vault
   closed; end state `protectionCount = 2`, zero service debt.
-- Phase 2 (real tokens): TRIM sold **0.005 WETH → 14.1 MockUSDC**
+- Release 1 (real tokens): TRIM sold **0.005 WETH → 14.1 MockUSDC**
   (position 0.01 → 0.005 WETH); EXIT sold **0.015 WETH → 35.1 MockUSDC**
   (position re-armed to 0.015 WETH between stages), vault closed. Swap
   accounting reconciles exactly (1,000 − 14.1 − 35.1 = 950.8 MockUSDC
   reserve; 0.02 WETH held).
-- Phase 2B: vault #2 armed and untouched through 22 live HOLDs —
+- Release 2: vault #2 armed and untouched through 22 live HOLDs —
   **0.0093 WETH** position preserved; HOLDs cost no callbacks.
 
 ## 4. Model metrics — with method
@@ -109,11 +109,11 @@ are genuinely unseen), labelled by a hand-written stop-loss policy ladder.
 The trainer's integer reference implementation was proven bit-for-bit
 against the Solidity behaviour before quantisation (×1000).
 
-- **Model v1 (trios #1–#2):** held-out accuracy, float model 97.10%;
+- **Model v1 (Releases 1–2):** held-out accuracy, float model 97.10%;
   shipped quantized integer model **97.47%** — per class HOLD 96.9% /
   TRIM 99.1% / **EXIT 100%**. These figures measure agreement with the
   labelling policy on unseen *synthetic* series, not trading performance.
-- **Model v2 (trio #3):** held-out fidelity **95.41%** against teacher v2
+- **Model v2 (Release 3):** held-out fidelity **95.41%** against teacher v2
   — a different, larger policy (v1 ladder + anchor clauses), so this is
   *not* a like-for-like comparison with 97.47%. What v2 buys, measured on
   the same rigs: synthetic slow-family EXIT windows 0.0% → 58.5% (grind),
@@ -148,7 +148,7 @@ first):
 
 | Balance | Value |
 |---------|-------|
-| Trio #3 reactive (`0x1752…2d33`) callback fuel, Lasna | **0.0349808 lREACT** (≈ 1 react at the observed ~0.030 lREACT/update — thin) |
+| Release 3 reactive (`0x1752…2d33`) callback fuel, Lasna | **0.0349808 lREACT** (≈ 1 react at the observed ~0.030 lREACT/update — thin) |
 | Vault #3 position, Base Sepolia | **0.00004 WETH** (+ 0.00004 ETH callback billing) — dust, by funding exhaustion, not by design |
 | Dev wallet, Lasna | 0.0006592 lREACT |
 | Dev wallet, Ethereum Sepolia | 0.000149 ETH |
@@ -159,18 +159,18 @@ established route is fully on-chain (Sepolia faucet contract
 `0x9b9BB25f1A81078C544C829c5EB7822d747Cf434`, `request(address)` at
 1 ETH → 100 lREACT, then a plain Lasna transfer to the reactive contract),
 but the dev wallet holds 0.000149 Sepolia ETH — below the ~0.005 ETH a
-round needs (→ ~0.5 lREACT, which would bring trio #3 to ≥ 0.5 lREACT).
+round needs (→ ~0.5 lREACT, which would bring Release 3 to ≥ 0.5 lREACT).
 One user refund of ≥ 0.01 Sepolia ETH to the dev wallet
 `0x75c328F0354fFC73bee24F61F7166a33Bf90Bf94` unblocks it; no redeploy or
 rewiring is involved. The web faucet (faucet.reactive.network) is also
-unreachable from the build VM. Until then the trio-#3 guardian is live but
+unreachable from the build VM. Until then the Release-3 guardian is live but
 fuel-thin: it ingests while solvent and silently receives nothing while
 in debt (network semantics).
 
 ## 7. Honest limits
 
 - **Fixed-price swap desk, not a DEX.** `SentinelSwap` fills at the
-  trio's price-source price against a seeded MockUSDC reserve; MockUSDC
+  release's price-source price against a seeded MockUSDC reserve; MockUSDC
   is a test token, not Circle's USDC. The tokens and transfers are real;
   the market is simulated.
 - **Vertical capitulations still exit near the trough.** In the August
@@ -206,7 +206,7 @@ in debt (network semantics).
   on later updates (the vault treats a callback on a closed position as
   a counted no-op). The cost is callback fees, never missed protection —
   but it is a real operating cost in a long crash.
-- **Dust position on trio #3.** 0.00004 WETH (see §6) — the trio is
+- **Dust position on Release 3.** 0.00004 WETH (see §6) — the release is
   fully wired and live-proven; the size is a funding artefact.
 - **Anchor cadence sensitivity.** The anchor decays per *update*, not
   per second; its bands were tuned at hourly cadence (half-life ≈ 693
@@ -218,21 +218,21 @@ in debt (network semantics).
 - **Testnet only, narrow by construction.** Base Sepolia + Lasna, one
   token, one immutable oracle, behaviour frozen into shipped weights.
 
-## 8. Trio #4 addendum — the repair release (2026-11-19)
+## 8. Release 4 addendum — the repair release (2026-11-19)
 
-Full record: [TRIO4.md](TRIO4.md). Tests now **93/93** (73 + 20 new).
+Full record: [RELEASE4.md](RELEASE4.md). Tests now **93/93** (73 + 20 new).
 The §6 "top-up BLOCKED" note is superseded: the user refunded the dev
-wallet with 1 Sepolia ETH on 2026-11-19, trio #3 was topped up to
-1.5349808 lREACT via the on-chain faucet route, and trio #4 was funded
+wallet with 1 Sepolia ETH on 2026-11-19, Release 3 was topped up to
+1.5349808 lREACT via the on-chain faucet route, and Release 4 was funded
 from the same pool.
 
 **The three documented weaknesses, disposition:**
 
 1. **Replay dedup — FIXED and shipped** in `SentinelReactiveV3`
    (log-identity mapping; §7's "No replay deduplication" bullet now
-   applies to trios #1–#3 only). Proven by 6 dedicated unit tests +
+   applies to Releases 1–3 only). Proven by 6 dedicated unit tests +
    the re-pinned adversarial case (c); live `duplicatesIgnored == 0`
-   on both trio #4 reactives (the network delivers each log once, so
+   on both Release 4 reactives (the network delivers each log once, so
    the path is unit-proven by design).
 2. **Whipsaw TRIM flap — HARDENED and shipped**: TRIM suppression for
    10 updates after a TRIM fire, bypassed only by EXIT conditions
@@ -246,42 +246,42 @@ from the same pool.
    the recovery gap (TRIM/EXIT at step 1) but failed the held-out
    fidelity gate (93.64–95.05% vs the required ≥ 95.41%) — the region
    overlaps benign post-rally HOLD windows in the 7-feature space.
-   Trio #4 therefore ships the **v2 weights unchanged**, and the blind
+   Release 4 therefore ships the **v2 weights unchanged**, and the blind
    window was re-measured live in the rehearsal: HOLD ×7, EXIT at
    step 8 of a −3%/step decline after a new high. Gate table and
-   reasoning: TRIO4.md §3.
+   reasoning: RELEASE4.md §3.
 
 **Deployments (all Sourcify exact_match, creation + runtime):**
 `SentinelReactiveV3` #4 `0xcE8615E0b19Ce81793aE34E6d7B8C33C440d2AA3`
 (Lasna, Chainlink origin, funded 1.05 lREACT); `SentinelSwap` #4
 `0xfc25B4e4961e1c6588CC1Ac7BbbdeCC3E88BBf05`; `SentinelVaultV2` #4
 `0xBd5d3146D62d4c6A6360483908e0429A1E6f9d06` (position 0.0001 WETH);
-rehearsal trio #4R: `MockPriceOracle`
+rehearsal Release 4R: `MockPriceOracle`
 `0xA9aCa38557E2ec428F1b398BfF8725D69a87f63a`, `SentinelReactiveV3`
 `0xC497213aBFCfa0Dee320121B9245D93D3d9952B8` (funded 1.10 lREACT),
 `SentinelSwap` `0x05111b776E3A20BB634424168207F5c5e606B4B5`,
 `SentinelVaultV2` `0x57298806AC7197f2e16715e0454BBe22ddC250d3`.
 
-**Live proof.** Main trio: 2 real Chainlink emissions ingested
+**Live proof.** Main release: 2 real Chainlink emissions ingested
 ($1,770.91 → $1,775.53614611), anchor re-anchored to the wei, HOLD
-(warm-up), react txs `0xd5262af6…` / `0xd590c8d6…`. Rehearsal trio:
+(warm-up), react txs `0xd5262af6…` / `0xd590c8d6…`. Rehearsal release:
 27 pushes → TRIM/EXIT/TRIM/EXIT callbacks (callback txs
 `0x2ec7cb8b…`, `0x4a27b310…`, `0x3d9c60e5…`, `0x2f6c3371…`), vault
 mUSDC 0.0343135 = the exact sum of the four fills, `protectionCount
 = 4`, position 0, closed. One deviation from the offline mirror is
-recorded in TRIO4.md §5 (a TRIM on the recovery's first step, inside
+recorded in RELEASE4.md §5 (a TRIM on the recovery's first step, inside
 the teacher's anchor-TRIM band).
 
-## 9. Trio #5 addendum — the re-risk release (2026-11-19)
+## 9. Release 5 addendum — the re-risk release (2026-11-19)
 
-Full record: [TRIO5.md](TRIO5.md). Tests now **144/144** (93 + 27
+Full record: [RELEASE5.md](RELEASE5.md). Tests now **144/144** (93 + 27
 for the single-shot re-risk candidate + 24 for the shipped
-scale-in). Trio #5 adds the one capability trios #1–#4 lacked:
+scale-in). Release 5 adds the one capability Releases 1–4 lacked:
 getting back in after a de-risk.
 
 **What shipped.** A rule-based episode machine in
 `SentinelReactiveV5` — model v2 weights, dedup and TRIM suppression
-bit-identical to trio #4 — driving `SentinelVaultV4` through the
+bit-identical to Release 4 — driving `SentinelVaultV4` through the
 two-way `SentinelSwapV2` desk: after a fired TRIM/EXIT, **tranche
 1** buys back with half the safe proceeds at the ≥ 97% reclaim of
 the episode anchor (≥ 3 updates later); **tranche 2** spends the
@@ -305,24 +305,24 @@ profit feature.
 (Lasna, Chainlink origin, funded 1.05 lREACT + 0.10 top-up);
 `SentinelSwapV2` #5 `0x80c3BF688b08ac03D3aE7396cDd96770F7ce572a`;
 `SentinelVaultV4` #5 `0xb13BF7Ff153e7f6304735EC4199B006Fd4857Ac9`
-(position 0.0001 WETH); rehearsal trio #5R: `MockPriceOracle`
+(position 0.0001 WETH); rehearsal Release 5R: `MockPriceOracle`
 `0xfC2E4b2BbFD195B4e56FCd1aa22F32ED7D15E2c3`, `SentinelReactiveV5`
 `0x1123b38e933D0a87D5846456c1ed6E94c936e3e1` (funded 1.40 lREACT),
 `SentinelSwapV2` `0x4357e1296f186Cb945578304EFca16219D83Ec0E`,
 `SentinelVaultV4` `0x242719F815141ad08286f29a23025b9244efd60e`.
 
-**Live proof.** Rehearsal trio: 31 pushes → TRIM / EXIT /
+**Live proof.** Rehearsal release: 31 pushes → TRIM / EXIT /
 RERISK / RERISK_FINAL / TRIM / EXIT callbacks (callback txs
 `0x695bc61d…`, `0x12ad313a…`, `0xa73e1f2c…`, `0xe0bf60a3…`,
 `0xed71abeb…`, `0x9cf87516…`) — the exact sequence the evaluation
 mirror predicted, update for update; 12 `TrimSuppressed` events;
 vault mUSDC 0.033663108000104059 = the mirror's prediction to the
 wei; the desk ended holding exactly the 0.0004 WETH ever deposited;
-`protectionCount = 6`, `reriskCount = 2`, closed. Main trio: 3 real
+`protectionCount = 6`, `reriskCount = 2`, closed. Main release: 3 real
 Chainlink emissions ingested ($1,803.58151417 — a quiet feed; two
 were heartbeat re-emissions of the same round), HOLD (warm-up),
 react txs `0xc37d27ae…` / `0x5fddb9a1…` / `0xdd726c29…`. One
-process incident is recorded in TRIO5.md §3 (the rehearsal driver
+process incident is recorded in RELEASE5.md §3 (the rehearsal driver
 was killed by a service restart after update 22 and resumed from
 verified on-chain state; no push was duplicated and contract
 behaviour shows no deviation).

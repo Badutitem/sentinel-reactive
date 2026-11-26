@@ -6,7 +6,7 @@ import {IReactive} from "@reactive/src/interfaces/IReactive.sol";
 import {ISystemContract} from "@reactive/src/interfaces/ISystemContract.sol";
 import {SentinelModelV2} from "./model/SentinelModelV2.sol";
 
-/// @title SentinelReactiveV5 — re-risk variant B (scale-in), trio #5 as evaluated (LOCAL ONLY).
+/// @title SentinelReactiveV5 — re-risk variant B (scale-in), Release 5 as evaluated (LOCAL ONLY).
 /// @notice SentinelReactiveV4 (dedup + TRIM suppression + shipped v2
 ///         weights, unchanged) with the episode machine's trigger
 ///         replaced by variant B from the re-risk variant evaluation
@@ -64,7 +64,7 @@ import {SentinelModelV2} from "./model/SentinelModelV2.sol";
 ///           reactive transactions; a contract in debt receives nothing),
 ///        2. deploy SentinelVaultV4 with this contract's address,
 ///        3. call `setVault` here so callbacks have a recipient.
-///      Intended deployment (trio #5, NOT deployed — local candidate):
+///      Intended deployment (Release 5, NOT deployed — local candidate):
 ///      origin = Base Sepolia, oracle = the ChainlinkPriceAdapter (which
 ///      re-emits PriceUpdated keyed to real WETH), token = WETH,
 ///      cooldown = 300 s.
@@ -81,6 +81,12 @@ contract SentinelReactiveV5 is AbstractReactive {
     uint256 internal constant MIN_UPDATES = 3;
     /// @notice Gas limit granted to the destination callback.
     uint64 internal constant CALLBACK_GAS_LIMIT = 1_000_000;
+    /// @notice Release 8 (F4/L8): prices above this are ignored at the top
+    ///         of `react()` instead of entering the window — $1,000,000 at
+    ///         the 1e18 price scale, ~370x the highest price ever ingested
+    ///         ($2,707.67) and ~58 orders of magnitude below the `int256`
+    ///         wrap threshold. Zero prices are ignored the same way.
+    uint256 internal constant MAX_SANE_PRICE = 1_000_000e18;
     /// @notice Leaky-peak decay per price update: anchorPeak x999/1000
     ///         (half-life ~693 updates). Chosen on measured evidence — see
     ///         ANCHOR.md section 2.2. Per-update, not per-second: the constant
@@ -243,6 +249,11 @@ contract SentinelReactiveV5 is AbstractReactive {
         _seenLogs[logKey] = true;
 
         (uint256 price, uint256 originTs) = abi.decode(log_.data, (uint256, uint256));
+        // Release 8 (F4/L8): a zero or absurd price is consumed (marked
+        // seen above, so it is never redelivered into a revert loop) but
+        // never enters the window: no push, no PriceSeen event, `updates`
+        // does not advance. One bad print can never wedge the brain.
+        if (price == 0 || price > MAX_SANE_PRICE) return;
         _push(price);
         emit PriceSeen(price, originTs, updates);
         if (updates < MIN_UPDATES) return;
@@ -302,17 +313,18 @@ contract SentinelReactiveV5 is AbstractReactive {
             })
         );
         if (action == SentinelModelV2.EXIT) {
-            // COOLDOWN STATE-LEAK FIX (v2, kept). An EXIT closes the
-            // position, so the cycle is over by definition; reset the
-            // fired-state to its initial values and the next position
-            // starts clean. The TRIM-suppression state resets with it:
-            // suppression belongs to the cycle that fired the TRIM.
-            // See SentinelReactiveV2 for the full rationale and the
-            // accepted trade-offs (repeat EXIT votes on a closed
-            // position fire immediately; the vault counts them as
-            // no-ops; the manual-withdraw close remains unobservable).
-            _lastFiredAction = SentinelModelV2.HOLD;
-            _lastFiredTs = 0;
+            // Release 8 (F3): the fired state is KEPT across the EXIT.
+            // Resetting it to HOLD/0 made every subsequent EXIT vote an
+            // "escalation" that bypassed the cooldown entirely — one
+            // callback per price update for as long as the crash lasts.
+            // Keeping EXIT + originTs makes every repeat EXIT
+            // cooldown-gated at 300 s instead. Accepted cost: a genuinely
+            // new position's first TRIM can wait up to 300 s, because a
+            // TRIM vote (1 > 2 is false) is not an escalation either.
+            // Only the TRIM-suppression state resets: suppression belongs
+            // to the cycle the EXIT closed.
+            _lastFiredAction = SentinelModelV2.EXIT;
+            _lastFiredTs = originTs;
             lastTrimFiredUpdate = 0;
         } else {
             _lastFiredAction = action;
@@ -365,6 +377,13 @@ contract SentinelReactiveV5 is AbstractReactive {
         if (!tranche2Fired && anchorPeak > episodeAnchor) {
             tranche2Fired = true;
             episodeActive = false;
+            // Release 8 (L3): a tranche-2 close means the position is
+            // fully bought back, so a new cycle starts and a fresh TRIM
+            // must be allowed — suppression is per position cycle, not
+            // per brain lifetime. An episode CANCEL (pre-tranche-1) does
+            // NOT reset it: the position is still de-risked and no new
+            // cycle has started.
+            lastTrimFiredUpdate = 0;
             reriskCount++;
             _requestCallback(ACTION_RERISK_FINAL, originTs);
         }
@@ -436,6 +455,14 @@ contract SentinelReactiveV5 is AbstractReactive {
             if (p[i] > peak) peak = p[i];
             sumPrice += p[i];
         }
+        uint256 mean = sumPrice / n;
+
+        // Release 8 (F4), defence in depth: the `react()` guard admits no
+        // zero price, so this branch is unreachable in a fresh deploy —
+        // but if any future path ever pushes a zero, the divisions below
+        // (by `p[i-1]`, `p[0]`, `mean`, `peak`) must not re-brick the
+        // brain. Return the zero-initialised feature array instead.
+        if (peak == 0 || p[0] == 0 || mean == 0) return f;
 
         int256 sumRet = 0;
         uint256 sumSq = 0;
@@ -448,7 +475,6 @@ contract SentinelReactiveV5 is AbstractReactive {
         }
 
         uint256 m = n - 1;
-        uint256 mean = sumPrice / n;
         f[0] = lastRet;
         f[1] = sumRet / int256(m);
         f[2] = int256(_isqrt(sumSq / m));

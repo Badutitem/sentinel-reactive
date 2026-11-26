@@ -6,7 +6,7 @@ import {IPayable} from "@reactive/src/interfaces/IPayable.sol";
 import {IERC20, SentinelSwap} from "./SentinelSwap.sol";
 
 /// @title SentinelVaultV2 — destination-chain vault holding a real ERC20 position.
-/// @notice Phase 2, upgrade A. Same role as SentinelVault (V1), but the
+/// @notice Release 1, upgrade A. Same role as SentinelVault (V1), but the
 ///         position is a real WETH balance held by this contract instead of a
 ///         bare counter: `positionSize` is a view over the actual balance, so
 ///         it is truthful by construction. On a protection callback the vault

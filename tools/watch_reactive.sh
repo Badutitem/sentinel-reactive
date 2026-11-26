@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Demo B Lasna event watcher: tails a SentinelReactive contract's
+# Release 2 Lasna event watcher: tails a SentinelReactive contract's
 # PriceSeen / Decision / CallbackRequested events via RPC log polling and
 # prints each new event with its transaction hash and a UTC timestamp.
 #

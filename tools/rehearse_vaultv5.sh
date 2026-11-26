@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Live testnet rehearsal driver for SentinelVaultV5 (pooled vault,
-# multi-user). Mirrors trio #5R's mirror-validated 31-push series on a
+# multi-user). Mirrors Release 5R's mirror-validated 31-push series on a
 # fresh rehearsal set (MockPriceOracle + SentinelReactiveV5 + Sentinel
 # SwapV2 + SentinelVaultV5), interleaving three burner users:
 #   A deposits 0.003 WETH before push 1 (first depositor, 1:1)

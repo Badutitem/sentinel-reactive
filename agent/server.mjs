@@ -18,7 +18,7 @@
  *   sentinel_status           live flagship state, read at call time
  *   sentinel_events           recent decisions / callbacks / protections
  *   sentinel_prepare_deposit  unsigned wrap/approve/deposit txs for YOUR wallet
- *   sentinel_verify           the five contracts + Sourcify/explorer links
+ *   sentinel_verify           the three flagship contracts + Sourcify/explorer links
  *
  * The live system's vault is SentinelVaultV5, a per-user pool: a deposit
  * mints shares in the depositor's name, and any holder can redeem their
@@ -54,8 +54,6 @@ const R5_DEPLOY = 9172277;
 const V5 = "0x108513e6439664fdeE9050e1ccc208e8c1b61441"; // SentinelVaultV5 — flagship per-user vault, Base Sepolia
 const V5_DEPLOY = 63196568;
 const S5 = "0x17700999733F766968EA252D5a17ac39F96F2C28"; // SentinelSwapV2 — flagship desk, Base Sepolia
-const R5R = "0x1123b38e933D0a87D5846456c1ed6E94c936e3e1"; // rehearsal reactive, Lasna
-const V5R = "0x242719F815141ad08286f29a23025b9244efd60e"; // rehearsal vault, Base Sepolia
 const WETH = "0x4200000000000000000000000000000000000006"; // canonical Base WETH
 const MUSDC = "0x96E467Ff7958851d307D28118EBAAD333CAb85B2"; // MockUSDC (the pool's safe asset, mock)
 
@@ -464,13 +462,11 @@ server.tool(
 const CONTRACTS = [
   { name: "SentinelReactiveV5 — the brain (live system)", chain: "Reactive Lasna testnet", chain_id: 5318007, address: R5, explorer: REACTSCAN },
   { name: "SentinelVaultV5 — the per-user vault (live system)", chain: "Base Sepolia", chain_id: BASE_CHAIN_ID, address: V5, explorer: BASESCAN },
-  { name: "SentinelSwapV2 — the swap desk (live system)", chain: "Base Sepolia", chain_id: BASE_CHAIN_ID, address: S5, explorer: BASESCAN },
-  { name: "SentinelReactiveV5 — rehearsal brain (#5R)", chain: "Reactive Lasna testnet", chain_id: 5318007, address: R5R, explorer: REACTSCAN },
-  { name: "SentinelVaultV4 — rehearsal vault (#5R)", chain: "Base Sepolia", chain_id: BASE_CHAIN_ID, address: V5R, explorer: BASESCAN }
+  { name: "SentinelSwapV2 — the swap desk (live system)", chain: "Base Sepolia", chain_id: BASE_CHAIN_ID, address: S5, explorer: BASESCAN }
 ];
 server.tool(
   "sentinel_verify",
-  "The five Sentinel live-system / rehearsal contracts with Sourcify lookup and block-explorer links. Every contract is verified on Sourcify with an exact match — the code you read is the code that runs.",
+  "The three Sentinel flagship (Release 6) contracts with Sourcify lookup and block-explorer links. Every contract is verified on Sourcify with an exact match — the code you read is the code that runs.",
   {},
   async () => json({
     contracts: CONTRACTS.map(c => ({

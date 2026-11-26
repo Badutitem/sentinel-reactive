@@ -8,7 +8,7 @@ import {MockSystemContract} from "./mocks/MockSystemContract.sol";
 import {IReactive} from "@reactive/src/interfaces/IReactive.sol";
 import {ISystemContract} from "@reactive/src/interfaces/ISystemContract.sol";
 
-/// @notice Tests for SentinelReactiveV4 (trio #5 candidate): the v3
+/// @notice Tests for SentinelReactiveV4 (Release 5 candidate): the v3
 ///         behaviours carried over (crash-path firing parity, replay
 ///         dedup) plus the RE-RISK episode machine:
 ///           (a) bleed -> EXIT -> recovery to >= 97% of the episode

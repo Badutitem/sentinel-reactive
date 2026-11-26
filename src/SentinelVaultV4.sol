@@ -5,7 +5,7 @@ import {AbstractCallback} from "@reactive/src/base/AbstractCallback.sol";
 import {IPayable} from "@reactive/src/interfaces/IPayable.sol";
 import {IERC20, SentinelSwapV2} from "./SentinelSwapV2.sol";
 
-/// @title SentinelVaultV4 — destination-chain vault with scale-in re-risk (trio #5, variant B).
+/// @title SentinelVaultV4 — destination-chain vault with scale-in re-risk (Release 5, variant B).
 /// @notice SentinelVaultV3 plus the second re-risk tranche. The re-risk
 ///         evaluation (RERISK-VARIANTS.md) crowned variant B — scale-in —
 ///         over the shipped single-shot rule, so the buyback now lands in
