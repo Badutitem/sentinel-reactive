@@ -93,14 +93,14 @@
 <p class="h2sub">The current release. The brain runs on the Reactive Lasna testnet; the vault it
 protects sits on Base Sepolia. Prices come from the real Chainlink ETH/USD feed. The vault is a
 <b>per-user pool</b>: anyone can deposit WETH for shares and redeem their own slice at any time —
-try it in the <a href="app.html">demo app</a>. The previous flagship set (the Release 5 contracts)
-stays live and untouched as the previous generation.</p>
+try it in the <a href="app.html">demo app</a>. The previous flagship set (Release 6, the pre-fix
+contracts) stays live and untouched as the previous generation.</p>
 
 <div class="grid">
   <div class="card">
     <h3>The brain — SentinelReactiveV5</h3>
     <p class="role">Reactive contract · Lasna · decides HOLD / TRIM / EXIT and can buy back in (re-risk)</p>
-    <div class="addr">0x37EeF5e3179E55c0e96E1528180B55Fa20DC150B</div>
+    <div class="addr">0x162DdFa4dD0db9bA60c4444b9a1BD1fa6b5343A9</div>
     <table class="kv">
       <tr><td class="k">Fuel (lREACT balance)</td><td class="v" data-f="r5-balance">…</td></tr>
       <tr><td class="k">Price updates ingested</td><td class="v" data-f="r5-updates">…</td></tr>
@@ -116,7 +116,7 @@ stays live and untouched as the previous generation.</p>
   <div class="card">
     <h3>The vault — SentinelVaultV5</h3>
     <p class="role">Destination contract · Base Sepolia · per-user pool: holds the position, obeys the brain's callbacks, pays each holder their own slice</p>
-    <div class="addr">0x108513e6439664fdeE9050e1ccc208e8c1b61441</div>
+    <div class="addr">0xD61E27bC945ceE8Bd967aA42c907e7bA6968b5e9</div>
     <table class="kv">
       <tr><td class="k">Position (risk asset, WETH)</td><td class="v" data-f="v5-position">…</td></tr>
       <tr><td class="k">Safe balance (mock USDC, from de-risking)</td><td class="v" data-f="v5-safe">…</td></tr>
@@ -133,8 +133,8 @@ stays live and untouched as the previous generation.</p>
 
 <h2>Event feed — what the live system has done</h2>
 <p class="h2sub">Decisions, callbacks, deposits and redemptions from the live system's contracts,
-newest first. Every row links to its transaction — check it yourself. The live system has been
-live since 25 Nov 2026 on a quiet feed, so a short feed is the honest picture: it ingests real
+newest first. Every row links to its transaction — check it yourself. The current set went
+live 27 Nov 2026 on a quiet feed, so a short feed is the honest picture: it ingests real
 prices and holds.</p>
 <div class="feed" id="feed"><div class="ev INFO"><span class="spin"></span> Reading events from Lasna and Base Sepolia…</div></div>
 
@@ -233,7 +233,7 @@ change — they were measured once, in testing, and are written here exactly as 
       <tr><td class="k">Weights the live system runs</td><td class="v">model v2</td></tr>
       <tr><td class="k">Held-out accuracy (6,001 unseen windows)</td><td class="v">95.41%</td></tr>
       <tr><td class="k">Per class — HOLD / TRIM / EXIT</td><td class="v">93.8% / 95.6% / 99.4%</td></tr>
-      <tr><td class="k">Contract test suite</td><td class="v">190/190 passing</td></tr>
+      <tr><td class="k">Contract test suite</td><td class="v">205/205 passing</td></tr>
     </table>
     <p style="color:var(--dim);font-size:14px;margin:12px 0 0">Accuracy here means agreement with the
     hand-written stop-loss policy that labelled the training data, on synthetic price series the
@@ -280,11 +280,11 @@ const BASE_RPCS_LOGS = ["https://base-sepolia-rpc.publicnode.com","https://base-
 const REACTSCAN = "https://lasna.reactscan.net";
 const BASESCAN  = "https://sepolia.basescan.org";
 
-const R5  = "0x37EeF5e3179E55c0e96E1528180B55Fa20DC150B"; // SentinelReactiveV5 — flagship brain, Lasna
-const R5_DEPLOY = 9172277;
-const V5  = "0x108513e6439664fdeE9050e1ccc208e8c1b61441"; // SentinelVaultV5 — flagship vault, Base Sepolia
-const V5_DEPLOY = 63196568;
-const S5  = "0x17700999733F766968EA252D5a17ac39F96F2C28"; // SentinelSwapV2 — flagship desk, Base Sepolia
+const R5  = "0x162DdFa4dD0db9bA60c4444b9a1BD1fa6b5343A9"; // SentinelReactiveV5 — flagship brain, Lasna
+const R5_DEPLOY = 9365765;
+const V5  = "0xD61E27bC945ceE8Bd967aA42c907e7bA6968b5e9"; // SentinelVaultV5 — flagship vault, Base Sepolia
+const V5_DEPLOY = 64246191;
+const S5  = "0xe8427C91A5456a4Ee82AE033A72ac3A3Ab11A371"; // SentinelSwapV2 — flagship desk, Base Sepolia
 const R5R = "0xaf030D808133C36E571c87C3A3fD2B7F511971E0"; // rehearsal reactive (VaultV5 set), Lasna
 const V5R = "0xf874c4E680EBBD65315a130A521399f43171dad2"; // rehearsal vault (VaultV5 set), Base Sepolia
 

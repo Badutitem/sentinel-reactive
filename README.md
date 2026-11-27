@@ -16,7 +16,7 @@ human watching charts at 3 a.m.
 | 🧪 **Demo app** | https://badutitem.github.io/sentinel-reactive/app.html — the demo shell, opened step by step: step 1 (wallet connect on Base Sepolia, your balances + the live guarded position in your own browser), step 2 (wrap test ETH → approve → deposit WETH into the guarded vault) and step 3 (your shares, your claim on the pool, redeem part or all of it whenever you like) are live; the vault keeps **per-user share accounting** — a deposit mints shares in your name and redemption pays your own slice of the pool — the page says exactly how it works before the deposit button; the test-mUSDC claim step stays blocked by the token itself (mint is owner-only, no public faucet) |
 | 🎯 **Model accuracy** | **97.47%** on held-out series (shipped integer model; EXIT calls 100%) |
 | ⚡ **Firing loop** | **≈ 2 s** end-to-end (origin → reactive → callback), proven live on testnet |
-| 🧪 **Tests** | **190/190** Foundry tests pass, including exact-logit pins, a full-loop end-to-end suite, the real-asset vault suite, the Chainlink adapter suite, the model-v2 suite (bit-exact feature/logit parity against the training mirror), an adversarial suite (stale feed, whipsaw, replay, slow-grind and re-arm behaviour — see EVIDENCE.md), the Release 4 repair suites (replay deduplication, TRIM suppression, re-pinned adversarial cases — see RELEASE4.md), the Release 5 re-risk suites (two-tranche buy-back — see RELEASE5.md) and the per-user pooled-vault suite (share accounting, donation-neutral pricing, exact reconciliation — see VAULTV5-DESIGN.md) |
+| 🧪 **Tests** | **205/205** Foundry tests pass, including exact-logit pins, a full-loop end-to-end suite, the real-asset vault suite, the Chainlink adapter suite, the model-v2 suite (bit-exact feature/logit parity against the training mirror), an adversarial suite (stale feed, whipsaw, replay, slow-grind and re-arm behaviour — see EVIDENCE.md), the Release 4 repair suites (replay deduplication, TRIM suppression, re-pinned adversarial cases — see RELEASE4.md), the Release 5 re-risk suites (two-tranche buy-back — see RELEASE5.md) and the per-user pooled-vault suite (share accounting, donation-neutral pricing, exact reconciliation — see VAULTV5-DESIGN.md) |
 | 👥 **Per-user vault** | **The live flagship** — `SentinelVaultV5` pools deposits with per-user share accounting: anyone can deposit WETH for shares and redeem their own pro-rata slice of the pool (WETH + MockUSDC) at any time; the guard acts on the whole pool at once, so every holder shares its decisions pro-rata; the owner's rescue is capped at the surplus above the share-backed totals (see FLAGSHIP-V5.md) |
 | 🏦 **Vault** | **Real ERC20 position** — `SentinelVaultV2` holds WETH on Base Sepolia and de-risks into MockUSDC through `SentinelSwap` (live proof below) |
 | 📡 **Price feed** | **The live system** — per-user guarded pool (SentinelVaultV5) on the real Chainlink ETH/USD feed via `ChainlinkPriceAdapter`, reactive subscribed to WETH; anchor-aware **model v2** runs inside the reactive contract; earlier generations (Releases 1–5) ran the same feed (see RELEASE5.md) |
@@ -473,7 +473,7 @@ re-emissions of the same round), HOLD in warm-up, and stands at
 untouched; the live flagship below reuses the same brain and desk
 code with the per-user vault.
 
-### The per-user flagship — the live system (2026-11-25)
+### The per-user flagship — the live system (2026-11-25, migrated to the fixed code 2026-11-27)
 
 Full record: [FLAGSHIP-V5.md](FLAGSHIP-V5.md); design:
 [VAULTV5-DESIGN.md](VAULTV5-DESIGN.md); on-chain multi-user rehearsal
@@ -491,16 +491,20 @@ holder shares the same decisions pro-rata.
 
 | Contract | Chain | Address | Deploy tx |
 |----------|-------|---------|-----------|
-| `SentinelReactiveV5` (flagship) | Lasna (5318007) | `0x37EeF5e3179E55c0e96E1528180B55Fa20DC150B` | `0x38cd921ef3bb091803fa763014800e2c5973d9b5efe423c9d865def5774c52d7` |
-| `SentinelSwapV2` (flagship) | Base Sepolia (84532) | `0x17700999733F766968EA252D5a17ac39F96F2C28` | `0x5966d9ad15f5cd5e76efdfe6c4f79121915ae7d71a1a9d628b376fa1461dda63` |
-| `SentinelVaultV5` (flagship) | Base Sepolia (84532) | `0x108513e6439664fdeE9050e1ccc208e8c1b61441` | `0xc2c4b6b1c26aa220daf0c46ec8f5ceceaebf3eb6ce0915de37949ec8a4389117` |
+| `SentinelReactiveV5` (flagship) | Lasna (5318007) | `0x162DdFa4dD0db9bA60c4444b9a1BD1fa6b5343A9` | `0x13ba5870a6b46414edacfd34fae0d22d5ef32715fa2a54f862b321eff8e7ae2e` |
+| `SentinelSwapV2` (flagship) | Base Sepolia (84532) | `0xe8427C91A5456a4Ee82AE033A72ac3A3Ab11A371` | `0x2e6c5f251c70fc7907db42a978e225b4bcb482caefa5ced0b3b0041ce7e4099d` |
+| `SentinelVaultV5` (flagship) | Base Sepolia (84532) | `0xD61E27bC945ceE8Bd967aA42c907e7bA6968b5e9` | `0x6ae1723482fd3af6d747f9d01d84dd4d2c74c4db4a7a6fab96b1ed81c4ca475b` |
+| `ChainlinkPriceAdapter` (flagship, heartbeat 3600) | Base Sepolia (84532) | `0xcc99348d41eec983584eE071EADC7091a895030d` | `0x0f931b6ed5609d15dab41b7f12d999690324aead210ba776a0225a47862701a4` |
 
 All **Sourcify-verified (exact match)**. The owner seeded the pool
 with **0.002 WETH** through the public flow (wrap → approve →
 deposit), receiving exactly 1:1 shares as first depositor. In its
-first live window the brain ingested three real Chainlink emissions
-($1,682.55553774 twice, then $1,679.60422012), HOLD in warm-up, and
-stands at 1.0613437 lREACT; the desk holds its 1,000 MockUSDC seed.
+first live window the brain ingested one real Chainlink emission
+($1,728.01138712), HOLD in warm-up, and stands at 2.1776106 lREACT
+(2.20 attached); the desk holds its 1,000 MockUSDC seed. The previous
+flagship set (Release 6, pre-fix code) was redeemed in full to the wei
+except 0.0003 WETH held by a filming wallet whose key is not in our
+files — full record: [FLAGSHIP-MIGRATION.md](FLAGSHIP-MIGRATION.md).
 
 ## Build & test
 
@@ -509,7 +513,7 @@ Requires [Foundry](https://getfoundry.sh) (solc 0.8.29). Dependencies
 
 ```bash
 forge build
-forge test        # 165 tests, 24 suites
+forge test        # 205 tests, 28 suites
 ```
 
 | Suite | Covers |

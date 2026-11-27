@@ -49,11 +49,11 @@ const REACTSCAN = "https://lasna.reactscan.net";
 const BASESCAN = "https://sepolia.basescan.org";
 const BASE_CHAIN_ID = 84532;
 
-const R5 = "0x37EeF5e3179E55c0e96E1528180B55Fa20DC150B"; // SentinelReactiveV5 — flagship brain, Lasna
-const R5_DEPLOY = 9172277;
-const V5 = "0x108513e6439664fdeE9050e1ccc208e8c1b61441"; // SentinelVaultV5 — flagship per-user vault, Base Sepolia
-const V5_DEPLOY = 63196568;
-const S5 = "0x17700999733F766968EA252D5a17ac39F96F2C28"; // SentinelSwapV2 — flagship desk, Base Sepolia
+const R5 = "0x162DdFa4dD0db9bA60c4444b9a1BD1fa6b5343A9"; // SentinelReactiveV5 — flagship brain, Lasna
+const R5_DEPLOY = 9365765;
+const V5 = "0xD61E27bC945ceE8Bd967aA42c907e7bA6968b5e9"; // SentinelVaultV5 — flagship per-user vault, Base Sepolia
+const V5_DEPLOY = 64246191;
+const S5 = "0xe8427C91A5456a4Ee82AE033A72ac3A3Ab11A371"; // SentinelSwapV2 — flagship desk, Base Sepolia
 const WETH = "0x4200000000000000000000000000000000000006"; // canonical Base WETH
 const MUSDC = "0x96E467Ff7958851d307D28118EBAAD333CAb85B2"; // MockUSDC (the pool's safe asset, mock)
 
@@ -300,7 +300,7 @@ async function collectEvents(limit) {
 }
 
 /* ---------------- MCP server ---------------- */
-const server = new McpServer({ name: "sentinel", version: "1.1.0" });
+const server = new McpServer({ name: "sentinel", version: "1.2.0" });
 const json = obj => ({ content: [{ type: "text", text: JSON.stringify(obj, null, 2) }] });
 const fail = e => ({ isError: true, content: [{ type: "text", text: "Error: " + (e && e.message ? e.message : String(e)) }] });
 
@@ -466,7 +466,7 @@ const CONTRACTS = [
 ];
 server.tool(
   "sentinel_verify",
-  "The three Sentinel flagship (Release 6) contracts with Sourcify lookup and block-explorer links. Every contract is verified on Sourcify with an exact match — the code you read is the code that runs.",
+  "The four Sentinel flagship contracts (fixed-code set, migrated 27 Nov 2026) with Sourcify lookup and block-explorer links. Every contract is verified on Sourcify with an exact match — the code you read is the code that runs.",
   {},
   async () => json({
     contracts: CONTRACTS.map(c => ({

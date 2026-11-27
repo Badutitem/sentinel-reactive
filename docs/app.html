@@ -140,7 +140,7 @@ signed in your wallet, and the position below updates after every confirmed step
 <div class="card">
   <h3>Deposit into SentinelVaultV5</h3>
   <p class="role">Destination contract · Base Sepolia · your WETH buys shares in the guarded pool</p>
-  <div class="addr">0x108513e6439664fdeE9050e1ccc208e8c1b61441</div>
+  <div class="addr">0xD61E27bC945ceE8Bd967aA42c907e7bA6968b5e9</div>
   <div class="row" style="margin-top:14px">
     <label for="d-amount" style="color:var(--dim);font-size:14px">Amount (test ETH)</label>
     <input class="amt" id="d-amount" type="text" inputmode="decimal" placeholder="0.0001" value="0.0001">
@@ -151,7 +151,9 @@ signed in your wallet, and the position below updates after every confirmed step
     <tr><td class="k">1 · Wrap ETH → WETH</td><td class="v"><span class="stepstate" id="d-step-wrap">waiting</span></td></tr>
     <tr><td class="k">2 · Approve the vault (exact amount)</td><td class="v"><span class="stepstate" id="d-step-approve">waiting</span></td></tr>
     <tr><td class="k">3 · Deposit into the vault</td><td class="v"><span class="stepstate" id="d-step-deposit">waiting</span></td></tr>
+    <tr><td class="k">Expected shares</td><td class="v"><span id="d-quote">—</span></td></tr>
   </table>
+  <div style="color:var(--dim);font-size:13px;margin-top:6px">Estimate from the live pool — the contract mints the exact amount when you deposit.</div>
 </div>
 
 <h2>Step 3 — your shares, and taking them back out</h2>
@@ -191,7 +193,7 @@ and the full firing proof are on the <a href="index.html">Live Proof page</a>.</
 <div class="card">
   <h3>SentinelVaultV5 — the guarded vault</h3>
   <p class="role">Destination contract · Base Sepolia · per-user pool, obeys the brain's callbacks</p>
-  <div class="addr">0x108513e6439664fdeE9050e1ccc208e8c1b61441</div>
+  <div class="addr">0xD61E27bC945ceE8Bd967aA42c907e7bA6968b5e9</div>
   <table class="kv">
     <tr><td class="k">Pool position (WETH under guard)</td><td class="v" data-f="v-position">…</td></tr>
     <tr><td class="k">Pool safe balance (mock USDC, from de-risking)</td><td class="v" data-f="v-safe">…</td></tr>
@@ -221,7 +223,8 @@ const CHAIN_HEX = "0x14a34"; // Base Sepolia, 84532
 
 const WETH  = "0x4200000000000000000000000000000000000006"; // canonical Base WETH
 const MUSDC = "0x96E467Ff7958851d307D28118EBAAD333CAb85B2"; // MockUSDC (the pool's safe asset, mock)
-const VAULT = "0x108513e6439664fdeE9050e1ccc208e8c1b61441"; // SentinelVaultV5 — the per-user pool (live system)
+const VAULT = "0xD61E27bC945ceE8Bd967aA42c907e7bA6968b5e9"; // SentinelVaultV5 — the per-user pool (live system)
+const SWAP  = "0xe8427C91A5456a4Ee82AE033A72ac3A3Ab11A371"; // SentinelSwapV2 — the swap desk (live system, price source for the deposit quote)
 
 const SEL = {
   balanceOf:"0x70a08231",
@@ -230,6 +233,8 @@ const SEL = {
   wethDeposit:"0xd0e30db0",
   vaultDeposit:"0xb6b55f25",
   sharesOf:"0xf5eb42dc", totalShares:"0x3a98ef39", claimOf:"0xfccd7f72",
+  managedRisk:"0x7bf1cb19", managedSafe:"0xba02153d",
+  priceSource:"0x20531bc9", latestPrice:"0x53084eff",
   redeem:"0xdb006a75", redeemAll:"0x2f4350c2",
   positionSize:"0x84f523ad", safeBalance:"0x88780b8e", closed:"0x597e1fb5",
   protectionCount:"0x9b02c402", reriskCount:"0x8beaf925"
@@ -401,6 +406,7 @@ async function refreshShares(){
 }
 
 let redeeming = false;
+let flowAccount = null; // Migration (LD-5): the account that started the current flow; sendTx aborts if it changes.
 async function runRedeem(all){
   if(redeeming) return;
   if(!account){ log("Connect your wallet first (step 1)."); return; }
@@ -424,6 +430,7 @@ async function runRedeem(all){
     }
   }
   redeeming = true;
+  flowAccount = account;
   $("btn-redeem").disabled = true;
   $("btn-redeem-all").disabled = true;
   setStep("r-step", '<span class="spin"></span> sign the redemption in your wallet…');
@@ -443,6 +450,7 @@ async function runRedeem(all){
     log("Redeem stopped: " + msg + ".");
   }finally{
     redeeming = false;
+    flowAccount = null;
     const can = !!account && myShares > 0n;
     $("btn-redeem").disabled = !can;
     $("btn-redeem-all").disabled = !can;
@@ -461,6 +469,10 @@ async function sendTx(to, data, valueWei){
   // Release 8 (LD-1): re-check the chain immediately before every send,
   // and pin the chain on the transaction itself — a mid-flow chain switch
   // can no longer land the tx on the wrong network.
+  // Migration (LD-5): abort when the wallet account changed mid-flow —
+  // a later step must never be sent from a different account than the
+  // one that started the flow.
+  if(flowAccount && account !== flowAccount) throw new Error("wallet account changed mid-flow — stopped, nothing further was sent");
   await ensureChain();
   return await window.ethereum.request({method:"eth_sendTransaction",
     params:[{from: account, to: to, data: data, value: "0x" + valueWei.toString(16), chainId: CHAIN_HEX}]});
@@ -496,6 +508,7 @@ async function runDeposit(){
     return;
   }
   depositing = true;
+  flowAccount = account;
   $("btn-deposit").disabled = true;
   setStep("d-step-wrap", "waiting"); setStep("d-step-approve", "waiting"); setStep("d-step-deposit", "waiting");
   let stage = "d-step-wrap";
@@ -551,7 +564,49 @@ async function runDeposit(){
     log("Deposit stopped: " + msg + ".");
   }finally{
     depositing = false;
+    flowAccount = null;
     $("btn-deposit").disabled = !account;
+  }
+}
+
+/* ---------- expected shares before you deposit (LD-4) ---------- */
+// Mirrors the vault's mint exactly: 1:1 when no shares are out, otherwise
+// floor(amount * totalShares / poolRiskEq), where poolRiskEq values the
+// safe leg at the desk's reference price, rounded up (against the
+// depositor) — same formula as SentinelVaultV5._poolRiskEq. An estimate
+// only: the contract mints the exact amount at deposit time.
+async function refreshQuote(){
+  const el = $("d-quote");
+  if(!el) return;
+  const amt = parseAmount($("d-amount").value);
+  if(amt === null){ el.textContent = "—"; return; }
+  try{
+    const [tsHex, mrHex, msHex] = await Promise.all([
+      call(VAULT, SEL.totalShares),
+      call(VAULT, SEL.managedRisk),
+      call(VAULT, SEL.managedSafe)
+    ]);
+    const ts = U(tsHex), mr = U(mrHex), ms = U(msHex);
+    let shares;
+    if(ts === 0n){
+      shares = amt;
+    }else{
+      let eq = mr;
+      if(ms > 0n){
+        const psHex = await call(SWAP, SEL.priceSource);
+        const adapter = "0x" + psHex.slice(-40);
+        const price = U(await call(adapter, SEL.latestPrice + argAddr(WETH)));
+        if(price === 0n) throw new Error("no reference price");
+        // safeEq = ceil(ms * 1e18 / price) — riskUnit, safeUnit and
+        // PRICE_SCALE are all 1e18, so the full formula collapses here.
+        const safeEq = (ms * 1000000000000000000n + price - 1n) / price;
+        eq = mr + safeEq;
+      }
+      shares = amt * ts / eq;
+    }
+    el.textContent = shares > 0n ? fmtTok(shares, "shares") + " (estimated)" : "0 — too small to mint a share";
+  }catch(e){
+    el.textContent = "unavailable";
   }
 }
 
@@ -570,6 +625,7 @@ async function refreshVault(){
   fill("v-closed",   call(VAULT, SEL.closed), v => U(v)===1n ? "yes" : "no — position open");
   fill("v-prot",     call(VAULT, SEL.protectionCount), v => U(v).toString());
   fill("v-rerisk",   call(VAULT, SEL.reriskCount), v => U(v).toString());
+  refreshQuote();
 }
 
 /* ---------- wallet events: handled in place, never a reload ---------- */
@@ -625,6 +681,10 @@ $("btn-refresh-vault").addEventListener("click", refreshVault);
 if(hasWallet() && window.ethereum.on){
   window.ethereum.on("accountsChanged", accs => {
     if(!accs || !accs.length){ disconnectWallet(); return; }
+    // Migration (LD-5): a switch mid-flow stops the flow at the next
+    // send — sendTx checks flowAccount. Refresh the panels for the new
+    // account either way.
+    if(flowAccount && accs[0] !== flowAccount) log("Wallet account changed mid-flow — the flow stops at the next step, nothing further is sent.");
     account = accs[0]; $("w-addr").textContent = account;
     $("btn-refresh-shares").disabled = false;
     refreshBalances(); refreshShares();
@@ -634,6 +694,7 @@ if(hasWallet() && window.ethereum.on){
 if(!hasWallet()){
   $("w-status").textContent = "no wallet detected in this browser";
 }
+$("d-amount").addEventListener("input", refreshQuote);
 refreshVault();
 </script>
 </body>
