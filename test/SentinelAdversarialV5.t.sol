@@ -129,7 +129,9 @@ contract SentinelAdversarialV5Test is Test {
             assertEq(_countAction(RERISK_FINAL), 0, "no new anchor high in the wave: tranche 2 never fires");
             assertEq(reactive.reriskCount(), cycle);
             assertTrue(reactive.tranche1Fired());
-            assertTrue(reactive.episodeActive(), "the episode stays open awaiting a tranche 2 that this wave never grants");
+            assertTrue(
+                reactive.episodeActive(), "the episode stays open awaiting a tranche 2 that this wave never grants"
+            );
 
             // Drop leg: opens the next episode via fresh EXITs.
             _feed(P90);

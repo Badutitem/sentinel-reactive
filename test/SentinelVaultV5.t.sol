@@ -364,9 +364,7 @@ contract SentinelVaultV5Test is Test {
         vm.expectRevert(SentinelVaultV5.ZeroShares.selector);
         vault.redeem(0);
         vm.prank(alice);
-        vm.expectRevert(
-            abi.encodeWithSelector(SentinelVaultV5.InsufficientShares.selector, alice, 11 ether, 10 ether)
-        );
+        vm.expectRevert(abi.encodeWithSelector(SentinelVaultV5.InsufficientShares.selector, alice, 11 ether, 10 ether));
         vault.redeem(11 ether);
         vm.prank(bob);
         vm.expectRevert(abi.encodeWithSelector(SentinelVaultV5.InsufficientShares.selector, bob, 1, 0));
@@ -575,9 +573,7 @@ contract SentinelVaultV5Test is Test {
         _fund(alice, 10 ether);
         _deposit(alice, 10 ether);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(SentinelVaultV5.ExceedsSurplus.selector, address(weth), 1, 0)
-        );
+        vm.expectRevert(abi.encodeWithSelector(SentinelVaultV5.ExceedsSurplus.selector, address(weth), 1, 0));
         vault.withdraw(address(weth), address(this), 1);
 
         weth.mint(address(vault), 50 ether); // donation -> surplus
@@ -585,9 +581,7 @@ contract SentinelVaultV5Test is Test {
         assertEq(vault.surplusRisk(), 0);
         assertEq(vault.managedRisk(), 10 ether, "user backing untouched");
 
-        vm.expectRevert(
-            abi.encodeWithSelector(SentinelVaultV5.ExceedsSurplus.selector, address(weth), 1, 0)
-        );
+        vm.expectRevert(abi.encodeWithSelector(SentinelVaultV5.ExceedsSurplus.selector, address(weth), 1, 0));
         vault.withdraw(address(weth), address(this), 1);
 
         // Stray (non-pool) tokens rescue in full, as V4.

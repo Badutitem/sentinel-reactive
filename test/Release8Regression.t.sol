@@ -133,7 +133,9 @@ contract Release8RegressionTest is Test {
     function _callbackAction(uint256 idx) internal view returns (uint8) {
         ISystemContract.CallbackConfiguration_V_1_0 memory cfg = sys.callbackAt(idx);
         bytes memory body = new bytes(cfg.payload.length - 4);
-        for (uint256 i = 0; i < body.length; i++) body[i] = cfg.payload[i + 4];
+        for (uint256 i = 0; i < body.length; i++) {
+            body[i] = cfg.payload[i + 4];
+        }
         (, uint8 action) = abi.decode(body, (address, uint8));
         return action;
     }
@@ -310,7 +312,12 @@ contract Release8RegressionTest is Test {
         MockAggregatorV3 feed = new MockAggregatorV3(8);
         feed.setRound(2000e8, block.timestamp); // $2000, fresh round
         ChainlinkPriceAdapter adapter = new ChainlinkPriceAdapter(
-            address(feed), address(weth), 10, 60, 300, 3600 // maxStaleness 1h
+            address(feed),
+            address(weth),
+            10,
+            60,
+            300,
+            3600 // maxStaleness 1h
         );
         adapter.sync();
         assertEq(adapter.latestPrice(address(weth)), 2000e18);

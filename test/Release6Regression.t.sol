@@ -103,7 +103,9 @@ contract Release6RegressionTest is Test {
     function _callbackAction(uint256 idx) internal view returns (uint8) {
         ISystemContract.CallbackConfiguration_V_1_0 memory cfg = sys.callbackAt(idx);
         bytes memory body = new bytes(cfg.payload.length - 4);
-        for (uint256 i = 0; i < body.length; i++) body[i] = cfg.payload[i + 4];
+        for (uint256 i = 0; i < body.length; i++) {
+            body[i] = cfg.payload[i + 4];
+        }
         (, uint8 action) = abi.decode(body, (address, uint8));
         return action;
     }
@@ -112,7 +114,9 @@ contract Release6RegressionTest is Test {
     ///         `fromIdx` (in order), returning the new count.
     function _deliverFrom(uint256 fromIdx) internal returns (uint256) {
         uint256 n = sys.callbackCount();
-        for (uint256 i = fromIdx; i < n; i++) _callback(_callbackAction(i));
+        for (uint256 i = fromIdx; i < n; i++) {
+            _callback(_callbackAction(i));
+        }
         return n;
     }
 
@@ -456,13 +460,9 @@ contract Release6RegressionTest is Test {
         assertTrue(reactive.vaultLocked(), "brain wiring locked at deploy");
         assertEq(address(swap.vault()), address(vault), "swap wired to the vault");
         assertEq(reactive.vault(), address(vault), "brain wired to the vault");
-        vm.expectRevert(
-            abi.encodeWithSignature("VaultAlreadySet(address)", address(vault))
-        );
+        vm.expectRevert(abi.encodeWithSignature("VaultAlreadySet(address)", address(vault)));
         swap.setVault(attacker);
-        vm.expectRevert(
-            abi.encodeWithSignature("VaultAlreadySet(address)", address(vault))
-        );
+        vm.expectRevert(abi.encodeWithSignature("VaultAlreadySet(address)", address(vault)));
         reactive.setVault(attacker);
         assertEq(address(swap.vault()), address(vault), "swap wiring unchanged");
         assertEq(reactive.vault(), address(vault), "brain wiring unchanged");
@@ -473,13 +473,9 @@ contract Release6RegressionTest is Test {
         vm.prank(alice);
         vault.deposit(10 ether);
         // Both redirection attempts fail; protection still fires.
-        vm.expectRevert(
-            abi.encodeWithSignature("VaultAlreadySet(address)", address(vault))
-        );
+        vm.expectRevert(abi.encodeWithSignature("VaultAlreadySet(address)", address(vault)));
         swap.setVault(attacker);
-        vm.expectRevert(
-            abi.encodeWithSignature("VaultAlreadySet(address)", address(vault))
-        );
+        vm.expectRevert(abi.encodeWithSignature("VaultAlreadySet(address)", address(vault)));
         reactive.setVault(attacker);
         uint256 price = 2000e18;
         for (uint256 i = 0; i < 40; i++) {
@@ -503,20 +499,121 @@ contract Release6RegressionTest is Test {
     ///         30 suppressed, reconciliation to the wei — identical to R8.
     function testV6_JuneCoreMirrorExact() public {
         uint256[56] memory prices = [
-            uint256(167928e16), 167600e16, 167388e16, 166963e16, 167740e16, 166895e16, 166570e16, 166746e16,
-            157819e16, 159673e16, 158681e16, 157596e16, 155324e16, 157242e16, 152662e16, 151760e16,
-            153575e16, 153395e16, 155118e16, 154648e16, 152334e16, 153945e16, 154813e16, 153289e16,
-            153764e16, 151385e16, 145329e16, 146697e16, 145285e16, 143103e16, 145833e16, 147126e16,
-            147062e16, 146386e16, 146048e16, 146898e16, 146309e16, 144776e16, 151010e16, 152592e16,
-            150661e16, 152150e16, 151279e16, 147959e16, 147742e16, 147446e16, 145641e16, 143484e16,
-            138740e16, 136436e16, 133941e16, 135083e16, 134969e16, 132304e16, 132435e16, 128346e16
+            uint256(167928e16),
+            167600e16,
+            167388e16,
+            166963e16,
+            167740e16,
+            166895e16,
+            166570e16,
+            166746e16,
+            157819e16,
+            159673e16,
+            158681e16,
+            157596e16,
+            155324e16,
+            157242e16,
+            152662e16,
+            151760e16,
+            153575e16,
+            153395e16,
+            155118e16,
+            154648e16,
+            152334e16,
+            153945e16,
+            154813e16,
+            153289e16,
+            153764e16,
+            151385e16,
+            145329e16,
+            146697e16,
+            145285e16,
+            143103e16,
+            145833e16,
+            147126e16,
+            147062e16,
+            146386e16,
+            146048e16,
+            146898e16,
+            146309e16,
+            144776e16,
+            151010e16,
+            152592e16,
+            150661e16,
+            152150e16,
+            151279e16,
+            147959e16,
+            147742e16,
+            147446e16,
+            145641e16,
+            143484e16,
+            138740e16,
+            136436e16,
+            133941e16,
+            135083e16,
+            134969e16,
+            132304e16,
+            132435e16,
+            128346e16
         ];
         // Expected action per update (0 = no callback): TRIM@9/21/32/44/55, EXIT@56.
         uint8[56] memory expected = [
-            uint8(0), 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 1, 2
+            uint8(0),
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            2
         ];
         vm.recordLogs();
         _fund(alice, 0.003 ether);

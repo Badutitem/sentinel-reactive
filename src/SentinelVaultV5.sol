@@ -312,8 +312,10 @@ contract SentinelVaultV5 is AbstractCallback {
         // Re-sync the managed totals by the trade's measured deltas.
         // Surplus is constant across this call, so raw deltas equal
         // managed deltas exactly.
-        managedRisk = uint256(int256(managedRisk) + (int256(riskAsset.balanceOf(address(this))) - int256(rawRiskBefore)));
-        managedSafe = uint256(int256(managedSafe) + (int256(safeAsset.balanceOf(address(this))) - int256(rawSafeBefore)));
+        managedRisk =
+            uint256(int256(managedRisk) + (int256(riskAsset.balanceOf(address(this))) - int256(rawRiskBefore)));
+        managedSafe =
+            uint256(int256(managedSafe) + (int256(safeAsset.balanceOf(address(this))) - int256(rawSafeBefore)));
         protectionCount++;
         lastProtectionAt = block.timestamp;
         emit ProtectionExecuted(reactive_, action_, before_, positionSize());

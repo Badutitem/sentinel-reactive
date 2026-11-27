@@ -115,7 +115,9 @@ contract AuditLeadsTest is Test {
     function _callbackAction(uint256 idx) internal view returns (uint8) {
         ISystemContract.CallbackConfiguration_V_1_0 memory cfg = sys.callbackAt(idx);
         bytes memory body = new bytes(cfg.payload.length - 4);
-        for (uint256 i = 0; i < body.length; i++) body[i] = cfg.payload[i + 4];
+        for (uint256 i = 0; i < body.length; i++) {
+            body[i] = cfg.payload[i + 4];
+        }
         (, uint8 action) = abi.decode(body, (address, uint8));
         return action;
     }
@@ -137,8 +139,10 @@ contract AuditLeadsTest is Test {
     // 3600 s apart. If decay were per-second the anchors would differ by
     // ~50 hours of decay; they are identical, proving decay is per-update.
     function testLeadL2_AnchorDecayIsPerUpdateNotPerSecond() public {
-        SentinelReactiveV5 fast = new SentinelReactiveV5(ORIGIN_CHAIN, address(oracle), address(weth), ORIGIN_CHAIN, 300);
-        SentinelReactiveV5 slow = new SentinelReactiveV5(ORIGIN_CHAIN, address(oracle), address(weth), ORIGIN_CHAIN, 300);
+        SentinelReactiveV5 fast =
+            new SentinelReactiveV5(ORIGIN_CHAIN, address(oracle), address(weth), ORIGIN_CHAIN, 300);
+        SentinelReactiveV5 slow =
+            new SentinelReactiveV5(ORIGIN_CHAIN, address(oracle), address(weth), ORIGIN_CHAIN, 300);
         _feedTo(fast, 100e18, T0);
         _feedTo(slow, 100e18, T0);
         for (uint256 i = 0; i < 50; i++) {
@@ -232,5 +236,4 @@ contract AuditLeadsTest is Test {
     // print reverts react()). Closed by the F4 upper bound with no extra code;
     // covered by testF4_HugePriceIgnoredBrainKeepsWorking in
     // test/Release8Regression.t.sol.
-
 }

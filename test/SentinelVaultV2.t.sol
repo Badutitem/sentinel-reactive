@@ -126,7 +126,8 @@ contract SentinelVaultV2Test is Test {
     }
 
     function testCallbackOnEmptyVaultOnlyCounts() public {
-        SentinelVaultV2 empty = new SentinelVaultV2(payable(proxy), reactive, address(weth), address(usdc), address(swap));
+        SentinelVaultV2 empty =
+            new SentinelVaultV2(payable(proxy), reactive, address(weth), address(usdc), address(swap));
         vm.prank(proxy);
         empty.executeProtection(reactive, EXIT);
         assertEq(empty.protectionCount(), 1);

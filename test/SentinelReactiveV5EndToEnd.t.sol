@@ -214,7 +214,11 @@ contract SentinelReactiveV5EndToEndTest is Test {
 
         _deliver(6); // TRANCHE 1 priced at $99: spends half of 539.117... USDC
         assertEq(weth.balanceOf(address(vault)), 2_722_815_648_911_829_958);
-        assertEq(usdc.balanceOf(address(vault)), 269_558_749_242_271_165_867, "the second half stays for this episode's tranche 2");
+        assertEq(
+            usdc.balanceOf(address(vault)),
+            269_558_749_242_271_165_867,
+            "the second half stays for this episode's tranche 2"
+        );
         assertFalse(vault.closed());
         assertEq(vault.reriskCount(), 3, "two tranches in episode one, one so far in episode two");
         assertEq(vault.protectionCount(), 7);

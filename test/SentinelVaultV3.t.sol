@@ -161,7 +161,8 @@ contract SentinelVaultV3Test is Test {
     /// @notice A re-risk with no safe balance is a counted no-op: no
     ///         ReRisked event, no reriskCount, nothing moves.
     function testReriskWithNoSafeBalanceOnlyCounts() public {
-        SentinelVaultV3 empty = new SentinelVaultV3(payable(proxy), reactive, address(weth), address(usdc), address(swap));
+        SentinelVaultV3 empty =
+            new SentinelVaultV3(payable(proxy), reactive, address(weth), address(usdc), address(swap));
         vm.prank(proxy);
         empty.executeProtection(reactive, RERISK);
         assertEq(empty.protectionCount(), 1);

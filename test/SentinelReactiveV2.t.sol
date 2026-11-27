@@ -308,13 +308,7 @@ contract SentinelReactiveV2Test is Test {
         assertEq(reactive.lastAction(), SentinelModelV2.EXIT);
         assertEq(reactive.anchorPeak(), 9_801_888_641);
         int256[7] memory exitFeatures = [
-            int256(-10999),
-            int256(-10999),
-            int256(10999),
-            int256(84685),
-            int256(-84685),
-            int256(-43669),
-            int256(182258)
+            int256(-10999), int256(-10999), int256(10999), int256(84685), int256(-84685), int256(-43669), int256(182258)
         ];
         for (uint256 i = 0; i < 7; i++) {
             assertEq(reactive.lastFeatures(i), exitFeatures[i], "first-EXIT feature");
@@ -330,13 +324,7 @@ contract SentinelReactiveV2Test is Test {
         assertEq(reactive.lastAction(), SentinelModelV2.EXIT);
         assertEq(reactive.anchorPeak(), 9_772_512_370);
         int256[7] memory finalFeatures = [
-            int256(-10999),
-            int256(-10999),
-            int256(10999),
-            int256(84685),
-            int256(-84685),
-            int256(-43669),
-            int256(206570)
+            int256(-10999), int256(-10999), int256(10999), int256(84685), int256(-84685), int256(-43669), int256(206570)
         ];
         for (uint256 i = 0; i < 7; i++) {
             assertEq(reactive.lastFeatures(i), finalFeatures[i], "final feature");

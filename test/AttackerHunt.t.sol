@@ -97,7 +97,9 @@ contract AttackerHuntTest is Test {
     function _callbackAction(uint256 idx) internal view returns (uint8) {
         ISystemContract.CallbackConfiguration_V_1_0 memory cfg = sys.callbackAt(idx);
         bytes memory body = new bytes(cfg.payload.length - 4);
-        for (uint256 i = 0; i < body.length; i++) body[i] = cfg.payload[i + 4];
+        for (uint256 i = 0; i < body.length; i++) {
+            body[i] = cfg.payload[i + 4];
+        }
         (, uint8 action) = abi.decode(body, (address, uint8));
         return action;
     }
@@ -121,9 +123,7 @@ contract AttackerHuntTest is Test {
     function testH1_HeartbeatGriefing_StrangerForcesEmissions() public {
         MockAggregatorV3 feed = new MockAggregatorV3(8);
         feed.setRound(2000e8, block.timestamp);
-        ChainlinkPriceAdapter adapter = new ChainlinkPriceAdapter(
-            address(feed), address(weth), 10, 60, 300, 3600
-        );
+        ChainlinkPriceAdapter adapter = new ChainlinkPriceAdapter(address(feed), address(weth), 10, 60, 300, 3600);
         // Flat price forever: the feed never moves.
         adapter.sync();
         assertEq(adapter.lastPrice(), 2000e18, "first sync emits");
@@ -358,9 +358,13 @@ contract AttackerHuntTest is Test {
         assertEq(vault.surplusRisk(), 3 ether);
         assertEq(vault.surplusSafe(), 500 ether);
         // Over-surplus withdraws revert for both pool assets.
-        vm.expectRevert(abi.encodeWithSignature("ExceedsSurplus(address,uint256,uint256)", address(weth), 3 ether + 1, 3 ether));
+        vm.expectRevert(
+            abi.encodeWithSignature("ExceedsSurplus(address,uint256,uint256)", address(weth), 3 ether + 1, 3 ether)
+        );
         vault.withdraw(address(weth), address(this), 3 ether + 1);
-        vm.expectRevert(abi.encodeWithSignature("ExceedsSurplus(address,uint256,uint256)", address(usdc), 501 ether, 500 ether));
+        vm.expectRevert(
+            abi.encodeWithSignature("ExceedsSurplus(address,uint256,uint256)", address(usdc), 501 ether, 500 ether)
+        );
         vault.withdraw(address(usdc), address(this), 501 ether);
         // Exact-surplus withdraw succeeds; managed backing untouched.
         vault.withdraw(address(weth), address(this), 3 ether);
@@ -369,7 +373,9 @@ contract AttackerHuntTest is Test {
         // Redirect both setVaults first — the cap still binds.
         swap.setVault(attacker);
         reactive.setVault(attacker);
-        vm.expectRevert(abi.encodeWithSignature("ExceedsSurplus(address,uint256,uint256)", address(usdc), 501 ether, 500 ether));
+        vm.expectRevert(
+            abi.encodeWithSignature("ExceedsSurplus(address,uint256,uint256)", address(usdc), 501 ether, 500 ether)
+        );
         vault.withdraw(address(usdc), address(this), 501 ether);
         // A non-pool token is rescuable in full (by design).
         MockERC20 other = new MockERC20("Other", "OTH", 18);

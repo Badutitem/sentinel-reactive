@@ -213,7 +213,10 @@ contract SentinelAdversarialTest is Test {
         uint256 firstExitStep = type(uint256).max;
         for (uint256 i = 0; i < 90; i++) {
             _feed(p, T0 + i * 60);
-            if (reactive.updates() >= 3 && reactive.lastAction() == SentinelModelV2.EXIT && firstExitStep == type(uint256).max) {
+            if (
+                reactive.updates() >= 3 && reactive.lastAction() == SentinelModelV2.EXIT
+                    && firstExitStep == type(uint256).max
+            ) {
                 firstExitStep = i;
                 assertEq(reactive.lastFeatures(6), int256(185038), "anchorDD at first grind EXIT");
             }

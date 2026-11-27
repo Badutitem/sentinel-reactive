@@ -207,7 +207,8 @@ contract SentinelVaultV4Test is Test {
     /// @notice Tranches with no safe balance are counted no-ops: no
     ///         ReRisked event, no reriskCount, nothing moves.
     function testTranchesWithNoSafeBalanceOnlyCount() public {
-        SentinelVaultV4 empty = new SentinelVaultV4(payable(proxy), reactive, address(weth), address(usdc), address(swap));
+        SentinelVaultV4 empty =
+            new SentinelVaultV4(payable(proxy), reactive, address(weth), address(usdc), address(swap));
         vm.prank(proxy);
         empty.executeProtection(reactive, RERISK);
         vm.prank(proxy);

@@ -118,7 +118,9 @@ contract AuditLane1Test is Test {
     function _callbackAction(uint256 idx) internal view returns (uint8) {
         ISystemContract.CallbackConfiguration_V_1_0 memory cfg = sys.callbackAt(idx);
         bytes memory body = new bytes(cfg.payload.length - 4);
-        for (uint256 i = 0; i < body.length; i++) body[i] = cfg.payload[i + 4];
+        for (uint256 i = 0; i < body.length; i++) {
+            body[i] = cfg.payload[i + 4];
+        }
         (, uint8 action) = abi.decode(body, (address, uint8));
         return action;
     }
@@ -180,7 +182,8 @@ contract AuditLane1Test is Test {
         MockERC20 weth2 = new MockERC20("Wrapped Ether", "WETH", 18);
         MockUSDC usdc2 = new MockUSDC();
         SentinelSwapV2 swap2 = new SentinelSwapV2(address(weth2), address(usdc2), address(oracle), address(0));
-        SentinelVaultV5 vault2 = new SentinelVaultV5(payable(proxy), reactiveAddr, address(weth2), address(usdc2), address(swap2));
+        SentinelVaultV5 vault2 =
+            new SentinelVaultV5(payable(proxy), reactiveAddr, address(weth2), address(usdc2), address(swap2));
         swap2.setVault(address(vault2));
         usdc2.mint(address(vault2), 1); // 1 wei surplus donation, NOT managed
         // Managed safe is 0, so RERISK spends 0 and never touches the donation.
