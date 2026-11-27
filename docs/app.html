@@ -138,9 +138,9 @@ signed in your wallet, and the position below updates after every confirmed step
 </div>
 
 <div class="card">
-  <h3>Deposit into SentinelVaultV5</h3>
+  <h3>Deposit into SentinelVaultV6</h3>
   <p class="role">Destination contract · Base Sepolia · your WETH buys shares in the guarded pool</p>
-  <div class="addr">0xD61E27bC945ceE8Bd967aA42c907e7bA6968b5e9</div>
+  <div class="addr">0xB6afd71a0c87c43aA02C3256F89e54044c537192</div>
   <div class="row" style="margin-top:14px">
     <label for="d-amount" style="color:var(--dim);font-size:14px">Amount (test ETH)</label>
     <input class="amt" id="d-amount" type="text" inputmode="decimal" placeholder="0.0001" value="0.0001">
@@ -162,7 +162,7 @@ all of them would pay you right now — the vault computes it, this page only di
 is one transaction, signed in your wallet; part or all, whenever you like.</p>
 
 <div class="card">
-  <h3>Your shares in SentinelVaultV5</h3>
+  <h3>Your shares in SentinelVaultV6</h3>
   <p class="role">Per-user accounting · Base Sepolia · read live for the connected wallet</p>
   <table class="kv">
     <tr><td class="k">Your shares</td><td class="v" id="s-shares">—</td></tr>
@@ -191,9 +191,9 @@ The brain that guards it lives on the Reactive Lasna testnet; its live state
 and the full firing proof are on the <a href="index.html">Live Proof page</a>.</p>
 
 <div class="card">
-  <h3>SentinelVaultV5 — the guarded vault</h3>
+  <h3>SentinelVaultV6 — the guarded vault</h3>
   <p class="role">Destination contract · Base Sepolia · per-user pool, obeys the brain's callbacks</p>
-  <div class="addr">0xD61E27bC945ceE8Bd967aA42c907e7bA6968b5e9</div>
+  <div class="addr">0xB6afd71a0c87c43aA02C3256F89e54044c537192</div>
   <table class="kv">
     <tr><td class="k">Pool position (WETH under guard)</td><td class="v" data-f="v-position">…</td></tr>
     <tr><td class="k">Pool safe balance (mock USDC, from de-risking)</td><td class="v" data-f="v-safe">…</td></tr>
@@ -223,8 +223,8 @@ const CHAIN_HEX = "0x14a34"; // Base Sepolia, 84532
 
 const WETH  = "0x4200000000000000000000000000000000000006"; // canonical Base WETH
 const MUSDC = "0x96E467Ff7958851d307D28118EBAAD333CAb85B2"; // MockUSDC (the pool's safe asset, mock)
-const VAULT = "0xD61E27bC945ceE8Bd967aA42c907e7bA6968b5e9"; // SentinelVaultV5 — the per-user pool (live system)
-const SWAP  = "0xe8427C91A5456a4Ee82AE033A72ac3A3Ab11A371"; // SentinelSwapV2 — the swap desk (live system, price source for the deposit quote)
+const VAULT = "0xB6afd71a0c87c43aA02C3256F89e54044c537192"; // SentinelVaultV6 — the per-user pool (live system)
+const SWAP  = "0x77478B3b48F5C05b59BE5F2EA421F02550CD1958"; // SentinelSwapV3 — the swap desk (live system, price source for the deposit quote)
 
 const SEL = {
   balanceOf:"0x70a08231",
@@ -573,7 +573,7 @@ async function runDeposit(){
 // Mirrors the vault's mint exactly: 1:1 when no shares are out, otherwise
 // floor(amount * totalShares / poolRiskEq), where poolRiskEq values the
 // safe leg at the desk's reference price, rounded up (against the
-// depositor) — same formula as SentinelVaultV5._poolRiskEq. An estimate
+// depositor) — same formula as SentinelVaultV6._poolRiskEq. An estimate
 // only: the contract mints the exact amount at deposit time.
 async function refreshQuote(){
   const el = $("d-quote");

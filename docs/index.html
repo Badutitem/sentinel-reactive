@@ -93,40 +93,40 @@
 <p class="h2sub">The current release. The brain runs on the Reactive Lasna testnet; the vault it
 protects sits on Base Sepolia. Prices come from the real Chainlink ETH/USD feed. The vault is a
 <b>per-user pool</b>: anyone can deposit WETH for shares and redeem their own slice at any time —
-try it in the <a href="app.html">demo app</a>. The previous flagship set (Release 6, the pre-fix
-contracts) stays live and untouched as the previous generation.</p>
+try it in the <a href="app.html">demo app</a>. The previous flagship set (fixed-code V6, migrated 27 Nov 09:13 UTC)
+stays live and untouched as the previous generation.</p>
 
 <div class="grid">
   <div class="card">
-    <h3>The brain — SentinelReactiveV5</h3>
+    <h3>The brain — SentinelReactiveV6</h3>
     <p class="role">Reactive contract · Lasna · decides HOLD / TRIM / EXIT and can buy back in (re-risk)</p>
-    <div class="addr">0x162DdFa4dD0db9bA60c4444b9a1BD1fa6b5343A9</div>
+    <div class="addr">0x155a8bA966fd179980c4BeB21354D908bBbB356f</div>
     <table class="kv">
-      <tr><td class="k">Fuel (lREACT balance)</td><td class="v" data-f="r5-balance">…</td></tr>
-      <tr><td class="k">Price updates ingested</td><td class="v" data-f="r5-updates">…</td></tr>
-      <tr><td class="k">Last price ingested (Chainlink ETH/USD)</td><td class="v" data-f="r5-lastprice">…</td></tr>
-      <tr><td class="k">Anchor (leaky peak the model watches)</td><td class="v" data-f="r5-anchor">…</td></tr>
-      <tr><td class="k">Last decision</td><td class="v" data-f="r5-action">…</td></tr>
-      <tr><td class="k">Duplicate logs ignored (replay guard)</td><td class="v" data-f="r5-dups">…</td></tr>
-      <tr><td class="k">Re-risk episode open?</td><td class="v" data-f="r5-episode">…</td></tr>
-      <tr><td class="k">Re-risk tranches fired (all episodes)</td><td class="v" data-f="r5-rerisk">…</td></tr>
+      <tr><td class="k">Fuel (lREACT balance)</td><td class="v" data-f="r6-balance">…</td></tr>
+      <tr><td class="k">Price updates ingested</td><td class="v" data-f="r6-updates">…</td></tr>
+      <tr><td class="k">Last price ingested (Chainlink ETH/USD)</td><td class="v" data-f="r6-lastprice">…</td></tr>
+      <tr><td class="k">Anchor (leaky peak the model watches)</td><td class="v" data-f="r6-anchor">…</td></tr>
+      <tr><td class="k">Last decision</td><td class="v" data-f="r6-action">…</td></tr>
+      <tr><td class="k">Duplicate logs ignored (replay guard)</td><td class="v" data-f="r6-dups">…</td></tr>
+      <tr><td class="k">Re-risk episode open?</td><td class="v" data-f="r6-episode">…</td></tr>
+      <tr><td class="k">Re-risk tranches fired (all episodes)</td><td class="v" data-f="r6-rerisk">…</td></tr>
     </table>
   </div>
 
   <div class="card">
-    <h3>The vault — SentinelVaultV5</h3>
+    <h3>The vault — SentinelVaultV6</h3>
     <p class="role">Destination contract · Base Sepolia · per-user pool: holds the position, obeys the brain's callbacks, pays each holder their own slice</p>
-    <div class="addr">0xD61E27bC945ceE8Bd967aA42c907e7bA6968b5e9</div>
+    <div class="addr">0xB6afd71a0c87c43aA02C3256F89e54044c537192</div>
     <table class="kv">
-      <tr><td class="k">Position (risk asset, WETH)</td><td class="v" data-f="v5-position">…</td></tr>
-      <tr><td class="k">Safe balance (mock USDC, from de-risking)</td><td class="v" data-f="v5-safe">…</td></tr>
-      <tr><td class="k">Shares outstanding (all holders)</td><td class="v" data-f="v5-shares">…</td></tr>
-      <tr><td class="k">Position closed by an EXIT?</td><td class="v" data-f="v5-closed">…</td></tr>
-      <tr><td class="k">Protection callbacks executed</td><td class="v" data-f="v5-prot">…</td></tr>
-      <tr><td class="k">Re-risk callbacks executed</td><td class="v" data-f="v5-rerisk">…</td></tr>
-      <tr><td class="k">Callback billing balance (ETH)</td><td class="v" data-f="v5-eth">…</td></tr>
-      <tr><td class="k">Swap desk reserve (mock USDC)</td><td class="v" data-f="s5-reserve">…</td></tr>
-      <tr><td class="k">Swap desk reserve (WETH)</td><td class="v" data-f="s5-riskreserve">…</td></tr>
+      <tr><td class="k">Position (risk asset, WETH)</td><td class="v" data-f="v6-position">…</td></tr>
+      <tr><td class="k">Safe balance (mock USDC, from de-risking)</td><td class="v" data-f="v6-safe">…</td></tr>
+      <tr><td class="k">Shares outstanding (all holders)</td><td class="v" data-f="v6-shares">…</td></tr>
+      <tr><td class="k">Position closed by an EXIT?</td><td class="v" data-f="v6-closed">…</td></tr>
+      <tr><td class="k">Protection callbacks executed</td><td class="v" data-f="v6-prot">…</td></tr>
+      <tr><td class="k">Re-risk callbacks executed</td><td class="v" data-f="v6-rerisk">…</td></tr>
+      <tr><td class="k">Callback billing balance (ETH)</td><td class="v" data-f="v6-eth">…</td></tr>
+      <tr><td class="k">Swap desk reserve (mock USDC)</td><td class="v" data-f="s6-reserve">…</td></tr>
+      <tr><td class="k">Swap desk reserve (WETH)</td><td class="v" data-f="s6-riskreserve">…</td></tr>
     </table>
   </div>
 </div>
@@ -233,7 +233,7 @@ change — they were measured once, in testing, and are written here exactly as 
       <tr><td class="k">Weights the live system runs</td><td class="v">model v2</td></tr>
       <tr><td class="k">Held-out accuracy (6,001 unseen windows)</td><td class="v">95.41%</td></tr>
       <tr><td class="k">Per class — HOLD / TRIM / EXIT</td><td class="v">93.8% / 95.6% / 99.4%</td></tr>
-      <tr><td class="k">Contract test suite</td><td class="v">205/205 passing</td></tr>
+      <tr><td class="k">Contract test suite</td><td class="v">219/219 passing</td></tr>
     </table>
     <p style="color:var(--dim);font-size:14px;margin:12px 0 0">Accuracy here means agreement with the
     hand-written stop-loss policy that labelled the training data, on synthetic price series the
@@ -280,11 +280,11 @@ const BASE_RPCS_LOGS = ["https://base-sepolia-rpc.publicnode.com","https://base-
 const REACTSCAN = "https://lasna.reactscan.net";
 const BASESCAN  = "https://sepolia.basescan.org";
 
-const R5  = "0x162DdFa4dD0db9bA60c4444b9a1BD1fa6b5343A9"; // SentinelReactiveV5 — flagship brain, Lasna
-const R5_DEPLOY = 9365765;
-const V5  = "0xD61E27bC945ceE8Bd967aA42c907e7bA6968b5e9"; // SentinelVaultV5 — flagship vault, Base Sepolia
-const V5_DEPLOY = 64246191;
-const S5  = "0xe8427C91A5456a4Ee82AE033A72ac3A3Ab11A371"; // SentinelSwapV2 — flagship desk, Base Sepolia
+const R6  = "0x155a8bA966fd179980c4BeB21354D908bBbB356f"; // SentinelReactiveV6 — flagship brain, Lasna
+const R6_DEPLOY = 9388176;
+const V6  = "0xB6afd71a0c87c43aA02C3256F89e54044c537192"; // SentinelVaultV6 — flagship vault, Base Sepolia
+const V6_DEPLOY = 64367922;
+const S6  = "0x77478B3b48F5C05b59BE5F2EA421F02550CD1958"; // SentinelSwapV3 — flagship desk, Base Sepolia
 const R5R = "0xaf030D808133C36E571c87C3A3fD2B7F511971E0"; // rehearsal reactive (VaultV5 set), Lasna
 const V5R = "0xf874c4E680EBBD65315a130A521399f43171dad2"; // rehearsal vault (VaultV5 set), Base Sepolia
 
@@ -379,31 +379,31 @@ async function scanLogs(urls, address, topics, fromBlock, chunk){
 
 /* ---------- live state: the flagship set ---------- */
 async function loadMain(){
-  fill("r5-balance", balance(LASNA_RPCS, R5), v => fmtTok(U(v), "lREACT"));
-  fill("r5-updates", call(LASNA_RPCS, R5, SEL.updates), v => U(v).toString());
-  fill("r5-anchor",  call(LASNA_RPCS, R5, SEL.anchorPeak), v => fmtPrice(U(v)));
-  fill("r5-dups",    call(LASNA_RPCS, R5, SEL.duplicatesIgnored), v => U(v).toString());
-  fill("r5-rerisk",  call(LASNA_RPCS, R5, SEL.reriskCount), v => U(v).toString());
-  fill("r5-action",  call(LASNA_RPCS, R5, SEL.lastAction), v => {
+  fill("r6-balance", balance(LASNA_RPCS, R6), v => fmtTok(U(v), "lREACT"));
+  fill("r6-updates", call(LASNA_RPCS, R6, SEL.updates), v => U(v).toString());
+  fill("r6-anchor",  call(LASNA_RPCS, R6, SEL.anchorPeak), v => fmtPrice(U(v)));
+  fill("r6-dups",    call(LASNA_RPCS, R6, SEL.duplicatesIgnored), v => U(v).toString());
+  fill("r6-rerisk",  call(LASNA_RPCS, R6, SEL.reriskCount), v => U(v).toString());
+  fill("r6-action",  call(LASNA_RPCS, R6, SEL.lastAction), v => {
     const a = Number(U(v)); return '<span class="act '+ACTIONS[a]+'">'+ACTIONS[a]+"</span>";
   });
-  fill("r5-episode", (async()=>{
-    const active = U(await call(LASNA_RPCS, R5, SEL.episodeActive)) === 1n;
+  fill("r6-episode", (async()=>{
+    const active = U(await call(LASNA_RPCS, R6, SEL.episodeActive)) === 1n;
     if(!active) return "no";
-    const anchor = U(await call(LASNA_RPCS, R5, SEL.episodeAnchor));
-    const t1 = U(await call(LASNA_RPCS, R5, SEL.tranche1Fired)) === 1n;
+    const anchor = U(await call(LASNA_RPCS, R6, SEL.episodeAnchor));
+    const t1 = U(await call(LASNA_RPCS, R6, SEL.tranche1Fired)) === 1n;
     return "yes — anchor " + fmtPrice(anchor) + (t1 ? " · tranche 1 fired" : " · waiting for tranche 1");
   })(), v => v);
 
-  fill("v5-position", call(BASE_RPCS_CALL, V5, SEL.positionSize), v => fmtTok(U(v), "WETH"));
-  fill("v5-safe",     call(BASE_RPCS_CALL, V5, SEL.safeBalance),  v => fmtTok(U(v), "mUSDC"));
-  fill("v5-shares",   call(BASE_RPCS_CALL, V5, SEL.totalShares), v => fmtTok(U(v), "shares"));
-  fill("v5-closed",   call(BASE_RPCS_CALL, V5, SEL.closed), v => U(v)===1n ? "yes" : "no — position open");
-  fill("v5-prot",     call(BASE_RPCS_CALL, V5, SEL.protectionCount), v => U(v).toString());
-  fill("v5-rerisk",   call(BASE_RPCS_CALL, V5, SEL.reriskCount), v => U(v).toString());
-  fill("v5-eth",      balance(BASE_RPCS_CALL, V5), v => fmtTok(U(v), "ETH"));
-  fill("s5-reserve",     call(BASE_RPCS_CALL, S5, SEL.reserve), v => fmtTok(U(v), "mUSDC", 2));
-  fill("s5-riskreserve", call(BASE_RPCS_CALL, S5, SEL.riskReserve), v => fmtTok(U(v), "WETH"));
+  fill("v6-position", call(BASE_RPCS_CALL, V6, SEL.positionSize), v => fmtTok(U(v), "WETH"));
+  fill("v6-safe",     call(BASE_RPCS_CALL, V6, SEL.safeBalance),  v => fmtTok(U(v), "mUSDC"));
+  fill("v6-shares",   call(BASE_RPCS_CALL, V6, SEL.totalShares), v => fmtTok(U(v), "shares"));
+  fill("v6-closed",   call(BASE_RPCS_CALL, V6, SEL.closed), v => U(v)===1n ? "yes" : "no — position open");
+  fill("v6-prot",     call(BASE_RPCS_CALL, V6, SEL.protectionCount), v => U(v).toString());
+  fill("v6-rerisk",   call(BASE_RPCS_CALL, V6, SEL.reriskCount), v => U(v).toString());
+  fill("v6-eth",      balance(BASE_RPCS_CALL, V6), v => fmtTok(U(v), "ETH"));
+  fill("s6-reserve",     call(BASE_RPCS_CALL, S6, SEL.reserve), v => fmtTok(U(v), "mUSDC", 2));
+  fill("s6-riskreserve", call(BASE_RPCS_CALL, S6, SEL.riskReserve), v => fmtTok(U(v), "WETH"));
 }
 
 /* ---------- live state: rehearsal set (for the proven-cycle strip) ---------- */
@@ -431,7 +431,7 @@ async function loadFeed(){
   };
   try{
     const rTopics = [TOPIC.PriceSeen, TOPIC.Decision, TOPIC.CallbackRequested, TOPIC.TrimSuppressed, TOPIC.EpisodeOpened, TOPIC.EpisodeCancelled];
-    const logs = await scanLogs(LASNA_RPCS, R5, rTopics, R5_DEPLOY, 30000);
+    const logs = await scanLogs(LASNA_RPCS, R6, rTopics, R5_DEPLOY, 30000);
     let lastPrice = null;
     for(const l of logs){
       const t0 = l.topics[0], w = words(l.data), blk = parseInt(l.blockNumber, 16);
@@ -453,12 +453,12 @@ async function loadFeed(){
         items.push({ts, html: evRow("INFO", "Re-risk episode cancelled", "price ran away before tranche 1, at "+fmtPrice(U(w[0])), fmtTs(ts), REACTSCAN, l.transactionHash)});
       }
     }
-    if(lastPrice !== null) setField("r5-lastprice", fmtPrice(lastPrice));
-    else setField("r5-lastprice", UNAVAIL);
-  }catch(e){ setField("r5-lastprice", UNAVAIL); }
+    if(lastPrice !== null) setField("r6-lastprice", fmtPrice(lastPrice));
+    else setField("r6-lastprice", UNAVAIL);
+  }catch(e){ setField("r6-lastprice", UNAVAIL); }
   try{
     const vTopics = [TOPIC.ProtectionExecuted, TOPIC.DeRisked, TOPIC.ReRisked, TOPIC.SharesMinted, TOPIC.SharesRedeemed];
-    const logs = await scanLogs(BASE_RPCS_LOGS, V5, vTopics, V5_DEPLOY, 50000);
+    const logs = await scanLogs(BASE_RPCS_LOGS, V6, vTopics, V5_DEPLOY, 50000);
     for(const l of logs){
       const t0 = l.topics[0], w = words(l.data), blk = parseInt(l.blockNumber, 16);
       const ts = await getTs(BASE_RPCS_CALL, blk);
@@ -508,9 +508,9 @@ document.getElementById("timeline").innerHTML = CYCLE.map(s =>
 
 /* ---------- verify cards ---------- */
 const CONTRACTS = [
-  {name:"SentinelReactiveV5 — the brain (live system)", chain:"Lasna · 5318007", addr:R5, explorer:REACTSCAN},
-  {name:"SentinelVaultV5 — the per-user vault (live system)", chain:"Base Sepolia · 84532", addr:V5, explorer:BASESCAN},
-  {name:"SentinelSwapV2 — the swap desk (live system)", chain:"Base Sepolia · 84532", addr:S5, explorer:BASESCAN},
+  {name:"SentinelReactiveV6 — the brain (live system)", chain:"Lasna · 5318007", addr:R6, explorer:REACTSCAN},
+  {name:"SentinelVaultV6 — the per-user vault (live system)", chain:"Base Sepolia · 84532", addr:V6, explorer:BASESCAN},
+  {name:"SentinelSwapV3 — the swap desk (live system)", chain:"Base Sepolia · 84532", addr:S6, explorer:BASESCAN},
   {name:"SentinelReactiveV5 — rehearsal brain (VaultV5 set)", chain:"Lasna · 5318007", addr:R5R, explorer:REACTSCAN},
   {name:"SentinelVaultV5 — rehearsal vault (VaultV5 set)", chain:"Base Sepolia · 84532", addr:V5R, explorer:BASESCAN}
 ];

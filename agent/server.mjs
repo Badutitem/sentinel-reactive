@@ -18,9 +18,9 @@
  *   sentinel_status           live flagship state, read at call time
  *   sentinel_events           recent decisions / callbacks / protections
  *   sentinel_prepare_deposit  unsigned wrap/approve/deposit txs for YOUR wallet
- *   sentinel_verify           the three flagship contracts + Sourcify/explorer links
+ *   sentinel_verify           the four flagship contracts + Sourcify/explorer links
  *
- * The live system's vault is SentinelVaultV5, a per-user pool: a deposit
+ * The live system's vault is SentinelVaultV6, a per-user pool: a deposit
  * mints shares in the depositor's name, and any holder can redeem their
  * shares at any time for their pro-rata slice of both pool assets.
  */
@@ -49,11 +49,11 @@ const REACTSCAN = "https://lasna.reactscan.net";
 const BASESCAN = "https://sepolia.basescan.org";
 const BASE_CHAIN_ID = 84532;
 
-const R5 = "0x162DdFa4dD0db9bA60c4444b9a1BD1fa6b5343A9"; // SentinelReactiveV5 — flagship brain, Lasna
-const R5_DEPLOY = 9365765;
-const V5 = "0xD61E27bC945ceE8Bd967aA42c907e7bA6968b5e9"; // SentinelVaultV5 — flagship per-user vault, Base Sepolia
-const V5_DEPLOY = 64246191;
-const S5 = "0xe8427C91A5456a4Ee82AE033A72ac3A3Ab11A371"; // SentinelSwapV2 — flagship desk, Base Sepolia
+const R6 = "0x155a8bA966fd179980c4BeB21354D908bBbB356f"; // SentinelReactiveV6 — flagship brain, Lasna
+const R6_DEPLOY = 9388176;
+const V6 = "0xB6afd71a0c87c43aA02C3256F89e54044c537192"; // SentinelVaultV6 — flagship per-user vault, Base Sepolia
+const V6_DEPLOY = 64367922;
+const S6 = "0x77478B3b48F5C05b59BE5F2EA421F02550CD1958"; // SentinelSwapV3 — flagship desk, Base Sepolia
 const WETH = "0x4200000000000000000000000000000000000006"; // canonical Base WETH
 const MUSDC = "0x96E467Ff7958851d307D28118EBAAD333CAb85B2"; // MockUSDC (the pool's safe asset, mock)
 
@@ -158,16 +158,16 @@ async function scanLogs(urls, address, topics, fromBlock, chunk) {
 /* ---------------- shared live reads ---------------- */
 async function readBrainState() {
   const [bal, updates, anchor, lastAction, dups, episodeActive, rerisk] = await Promise.all([
-    getBalance(LASNA_RPCS, R5),
-    call(LASNA_RPCS, R5, SEL.updates),
-    call(LASNA_RPCS, R5, SEL.anchorPeak),
-    call(LASNA_RPCS, R5, SEL.lastAction),
-    call(LASNA_RPCS, R5, SEL.duplicatesIgnored),
-    call(LASNA_RPCS, R5, SEL.episodeActive),
-    call(LASNA_RPCS, R5, SEL.reriskCount)
+    getBalance(LASNA_RPCS, R6),
+    call(LASNA_RPCS, R6, SEL.updates),
+    call(LASNA_RPCS, R6, SEL.anchorPeak),
+    call(LASNA_RPCS, R6, SEL.lastAction),
+    call(LASNA_RPCS, R6, SEL.duplicatesIgnored),
+    call(LASNA_RPCS, R6, SEL.episodeActive),
+    call(LASNA_RPCS, R6, SEL.reriskCount)
   ]);
   const state = {
-    address: R5,
+    address: R6,
     chain: "Reactive Lasna testnet (5318007)",
     fuel_lreact: fmtTok(U(bal), "lREACT"),
     fuel_lreact_wei: U(bal).toString(),
@@ -181,8 +181,8 @@ async function readBrainState() {
   };
   if (state.rerisk_episode_active) {
     const [epAnchor, t1] = await Promise.all([
-      call(LASNA_RPCS, R5, SEL.episodeAnchor),
-      call(LASNA_RPCS, R5, SEL.tranche1Fired)
+      call(LASNA_RPCS, R6, SEL.episodeAnchor),
+      call(LASNA_RPCS, R6, SEL.tranche1Fired)
     ]);
     state.episode_anchor = fmtPrice(U(epAnchor));
     state.episode_tranche1_fired = U(t1) === 1n;
@@ -191,7 +191,7 @@ async function readBrainState() {
 }
 
 async function readLastPrice() {
-  const logs = await scanLogs(LASNA_RPCS, R5, [TOPIC.PriceSeen], R5_DEPLOY, 30000);
+  const logs = await scanLogs(LASNA_RPCS, R6, [TOPIC.PriceSeen], R5_DEPLOY, 30000);
   if (!logs.length) return null;
   logs.sort((a, b) => parseInt(a.blockNumber, 16) - parseInt(b.blockNumber, 16) || parseInt(a.logIndex, 16) - parseInt(b.logIndex, 16));
   const last = logs[logs.length - 1];
@@ -206,21 +206,21 @@ async function readLastPrice() {
 
 async function readVaultState() {
   const [position, safe, closed, prot, rerisk, ethBal, reserve, riskReserve, totalShares] = await Promise.all([
-    call(BASE_RPCS_CALL, V5, SEL.positionSize),
-    call(BASE_RPCS_CALL, V5, SEL.safeBalance),
-    call(BASE_RPCS_CALL, V5, SEL.closed),
-    call(BASE_RPCS_CALL, V5, SEL.protectionCount),
-    call(BASE_RPCS_CALL, V5, SEL.reriskCount),
-    getBalance(BASE_RPCS_CALL, V5),
-    call(BASE_RPCS_CALL, S5, SEL.reserve),
-    call(BASE_RPCS_CALL, S5, SEL.riskReserve),
-    call(BASE_RPCS_CALL, V5, SEL.totalShares)
+    call(BASE_RPCS_CALL, V6, SEL.positionSize),
+    call(BASE_RPCS_CALL, V6, SEL.safeBalance),
+    call(BASE_RPCS_CALL, V6, SEL.closed),
+    call(BASE_RPCS_CALL, V6, SEL.protectionCount),
+    call(BASE_RPCS_CALL, V6, SEL.reriskCount),
+    getBalance(BASE_RPCS_CALL, V6),
+    call(BASE_RPCS_CALL, S6, SEL.reserve),
+    call(BASE_RPCS_CALL, S6, SEL.riskReserve),
+    call(BASE_RPCS_CALL, V6, SEL.totalShares)
   ]);
   return {
     vault: {
-      address: V5,
+      address: V6,
       chain: "Base Sepolia (84532)",
-      kind: "per-user pooled vault (SentinelVaultV5) — deposits mint shares, holders redeem their own slice at any time",
+      kind: "per-user pooled vault (SentinelVaultV6) — deposits mint shares, holders redeem their own slice at any time",
       position_weth: fmtTok(U(position), "WETH"),
       position_weth_wei: U(position).toString(),
       safe_balance_musdc: fmtTok(U(safe), "mUSDC"),
@@ -234,7 +234,7 @@ async function readVaultState() {
       callback_billing_eth_wei: U(ethBal).toString()
     },
     swap_desk: {
-      address: S5,
+      address: S6,
       reserve_musdc: fmtTok(U(reserve), "mUSDC"),
       reserve_musdc_wei: U(reserve).toString(),
       reserve_weth: fmtTok(U(riskReserve), "WETH"),
@@ -252,7 +252,7 @@ async function collectEvents(limit) {
     return timeCache[key];
   };
   const rTopics = [TOPIC.PriceSeen, TOPIC.Decision, TOPIC.CallbackRequested, TOPIC.TrimSuppressed, TOPIC.EpisodeOpened, TOPIC.EpisodeCancelled];
-  const rLogs = await scanLogs(LASNA_RPCS, R5, rTopics, R5_DEPLOY, 30000);
+  const rLogs = await scanLogs(LASNA_RPCS, R6, rTopics, R5_DEPLOY, 30000);
   for (const l of rLogs) {
     const t0 = l.topics[0], w = words(l.data), blk = parseInt(l.blockNumber, 16);
     const ts = await getTs(LASNA_RPCS, blk);
@@ -274,7 +274,7 @@ async function collectEvents(limit) {
     }
   }
   const vTopics = [TOPIC.ProtectionExecuted, TOPIC.DeRisked, TOPIC.ReRisked, TOPIC.SharesMinted, TOPIC.SharesRedeemed];
-  const vLogs = await scanLogs(BASE_RPCS_LOGS, V5, vTopics, V5_DEPLOY, 50000);
+  const vLogs = await scanLogs(BASE_RPCS_LOGS, V6, vTopics, V5_DEPLOY, 50000);
   for (const l of vLogs) {
     const t0 = l.topics[0], w = words(l.data), blk = parseInt(l.blockNumber, 16);
     const ts = await getTs(BASE_RPCS_CALL, blk);
@@ -300,7 +300,7 @@ async function collectEvents(limit) {
 }
 
 /* ---------------- MCP server ---------------- */
-const server = new McpServer({ name: "sentinel", version: "1.2.0" });
+const server = new McpServer({ name: "sentinel", version: "1.3.0" });
 const json = obj => ({ content: [{ type: "text", text: JSON.stringify(obj, null, 2) }] });
 const fail = e => ({ isError: true, content: [{ type: "text", text: "Error: " + (e && e.message ? e.message : String(e)) }] });
 
@@ -339,7 +339,7 @@ server.tool(
   }
 );
 
-/* Expected shares for a deposit, mirroring SentinelVaultV5's own math:
+/* Expected shares for a deposit, mirroring SentinelVaultV6's own math:
  * first deposit mints 1:1; later deposits mint floor(amount * totalShares /
  * poolRiskEq) with the safe leg valued at the desk's reference price
  * (rounded up, against the depositor). Returns null when the vault would
@@ -347,15 +347,15 @@ server.tool(
  * 18-decimal as deployed. */
 async function expectedShares(amount) {
   const [tsHex, mrHex, msHex] = await Promise.all([
-    call(BASE_RPCS_CALL, V5, SEL.totalShares),
-    call(BASE_RPCS_CALL, V5, SEL.managedRisk),
-    call(BASE_RPCS_CALL, V5, SEL.managedSafe)
+    call(BASE_RPCS_CALL, V6, SEL.totalShares),
+    call(BASE_RPCS_CALL, V6, SEL.managedRisk),
+    call(BASE_RPCS_CALL, V6, SEL.managedSafe)
   ]);
   const totalShares = U(tsHex), managedRisk = U(mrHex), managedSafe = U(msHex);
   if (totalShares === 0n) return amount;
   let poolRiskEq = managedRisk;
   if (managedSafe > 0n) {
-    const src = "0x" + (await call(BASE_RPCS_CALL, S5, SEL.priceSource)).slice(-40);
+    const src = "0x" + (await call(BASE_RPCS_CALL, S6, SEL.priceSource)).slice(-40);
     const price = U(await call(BASE_RPCS_CALL, src, SEL.latestPrice + padAddr(WETH)));
     if (price === 0n) return null;
     const denom = price * 10n ** 18n;
@@ -368,8 +368,8 @@ async function expectedShares(amount) {
 
 async function readUserShares(user) {
   const [sharesHex, claimHex] = await Promise.all([
-    call(BASE_RPCS_CALL, V5, SEL.sharesOf + padAddr(user)),
-    call(BASE_RPCS_CALL, V5, SEL.claimOf + padAddr(user))
+    call(BASE_RPCS_CALL, V6, SEL.sharesOf + padAddr(user)),
+    call(BASE_RPCS_CALL, V6, SEL.claimOf + padAddr(user))
   ]);
   const cw = claimHex.slice(2).padStart(128, "0");
   return {
@@ -394,7 +394,7 @@ server.tool(
       const [ethBalHex, wethBalHex, allowHex, userShares, minted] = await Promise.all([
         getBalance(BASE_RPCS_CALL, from),
         call(BASE_RPCS_CALL, WETH, SEL.balanceOf + padAddr(from)),
-        call(BASE_RPCS_CALL, WETH, SEL.allowance + padAddr(from) + padAddr(V5)),
+        call(BASE_RPCS_CALL, WETH, SEL.allowance + padAddr(from) + padAddr(V6)),
         readUserShares(from),
         expectedShares(amount)
       ]);
@@ -418,13 +418,13 @@ server.tool(
         transactions.push({
           step: transactions.length + 1, action: "approve",
           description: "Approve the vault to pull exactly " + fmtTok(amount, "WETH"),
-          chain_id: BASE_CHAIN_ID, to: WETH, value: "0", value_hex: "0x0", data: SEL.approve + padAddr(V5) + padUint(amount)
+          chain_id: BASE_CHAIN_ID, to: WETH, value: "0", value_hex: "0x0", data: SEL.approve + padAddr(V6) + padUint(amount)
         });
       }
       transactions.push({
         step: transactions.length + 1, action: "deposit",
         description: "Deposit " + fmtTok(amount, "WETH") + " into the per-user pool — mints about " + fmtTok(minted, "shares") + " in the sender's name",
-        chain_id: BASE_CHAIN_ID, to: V5, value: "0", value_hex: "0x0", data: SEL.vaultDeposit + padUint(amount)
+        chain_id: BASE_CHAIN_ID, to: V6, value: "0", value_hex: "0x0", data: SEL.vaultDeposit + padUint(amount)
       });
       return json({
         ready: warnings.length === 0,
@@ -460,9 +460,9 @@ server.tool(
 );
 
 const CONTRACTS = [
-  { name: "SentinelReactiveV5 — the brain (live system)", chain: "Reactive Lasna testnet", chain_id: 5318007, address: R5, explorer: REACTSCAN },
-  { name: "SentinelVaultV5 — the per-user vault (live system)", chain: "Base Sepolia", chain_id: BASE_CHAIN_ID, address: V5, explorer: BASESCAN },
-  { name: "SentinelSwapV2 — the swap desk (live system)", chain: "Base Sepolia", chain_id: BASE_CHAIN_ID, address: S5, explorer: BASESCAN }
+  { name: "SentinelReactiveV6 — the brain (live system)", chain: "Reactive Lasna testnet", chain_id: 5318007, address: R6, explorer: REACTSCAN },
+  { name: "SentinelVaultV6 — the per-user vault (live system)", chain: "Base Sepolia", chain_id: BASE_CHAIN_ID, address: V6, explorer: BASESCAN },
+  { name: "SentinelSwapV3 — the swap desk (live system)", chain: "Base Sepolia", chain_id: BASE_CHAIN_ID, address: S6, explorer: BASESCAN }
 ];
 server.tool(
   "sentinel_verify",
