@@ -22,6 +22,11 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
 
+      - name: Install dependencies
+        run: |
+          forge install foundry-rs/forge-std@v1.17.0 --no-commit
+          forge install Reactive-Network/reactive-lib-omni@v0.1.0 --no-commit
+
       - name: Show Forge version
         run: forge --version
 
