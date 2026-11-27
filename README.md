@@ -514,7 +514,7 @@ Requires [Foundry](https://getfoundry.sh) (solc 0.8.29). Dependencies
 
 ```bash
 forge build
-forge test        # 205 tests, 28 suites
+forge test        # 219 tests, 29 suites
 ```
 
 | Suite | Covers |
